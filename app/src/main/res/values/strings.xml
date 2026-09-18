@@ -5,7 +5,6 @@
     <string name="setup_body_manual">Google / YouTube / Instagram / TikTok search on the left.\nChatGPT new chat on the right.\n\nThis launcher uses manual widget placement. Tap below, then long-press an empty home-screen area → Widgets → search “Widget Bar” → drag it into place.</string>
     <string name="add_widget">Add widget</string>
     <string name="open_home_screen">Open home screen</string>
-    <string name="pin_unsupported">Automatic pinning is unavailable. Long-press an empty home-screen area → Widgets → search “Widget Bar” → drag it into place.</string>
     <string name="manual_placement_steps">Long-press an empty home-screen area → Widgets → search “Widget Bar” → drag it onto the home screen.</string>
     <string name="widget_description">Minimal switchable search bar with a ChatGPT new-chat shortcut</string>
     <string name="provider_button">Choose search provider</string>
