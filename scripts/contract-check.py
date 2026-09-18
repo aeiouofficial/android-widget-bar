@@ -8,6 +8,7 @@ layout = ROOT / "app/src/main/res/layout/widget_search_bar.xml"
 providers = ROOT / "app/src/main/java/com/aeiou/widgetbar/ProviderTarget.java"
 picker = ROOT / "app/src/main/java/com/aeiou/widgetbar/PickerActivity.java"
 chat = ROOT / "app/src/main/java/com/aeiou/widgetbar/ChatGptNewChatActivity.java"
+setup = ROOT / "app/src/main/java/com/aeiou/widgetbar/SetupActivity.java"
 
 failures = []
 
@@ -22,6 +23,7 @@ layout_text = layout.read_text(encoding="utf-8")
 providers_text = providers.read_text(encoding="utf-8")
 picker_text = picker.read_text(encoding="utf-8")
 chat_text = chat.read_text(encoding="utf-8")
+setup_text = setup.read_text(encoding="utf-8")
 
 if "<uses-permission" in manifest_text:
     failures.append("Manifest must not request runtime/system permissions.")
@@ -50,6 +52,12 @@ if "chatgpt://" not in chat_text or "com.openai.chatgpt" not in chat_text:
 if "https://chatgpt.com/" not in chat_text:
     failures.append("ChatGPT new-chat action must retain the browser fallback.")
 
+if "requestPinAppWidget(provider, null, null)" not in setup_text:
+    failures.append("Widget pinning must leave placement completion to the launcher.")
+
+if "PendingIntent" in setup_text:
+    failures.append("SetupActivity must not reintroduce a pin success callback.")
+
 if failures:
     for failure in failures:
         print(f"FAIL: {failure}", file=sys.stderr)
@@ -61,3 +69,4 @@ print("PASS: exactly one right-side ChatGPT icon")
 print("PASS: collapsed bar has no extra provider icons")
 print("PASS: drop-up providers = Google, YouTube, Instagram, TikTok")
 print("PASS: ChatGPT remains separate new-chat action")
+print("PASS: launcher owns widget pin completion")
