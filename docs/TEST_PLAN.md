@@ -3,7 +3,7 @@
 ## CI gates
 
 1. Source contract check: XML parse, zero requested permissions, one collapsed right-side ChatGPT icon, four search providers.
-2. Gradle 8.13 + AGP 8.13.2 dependency resolution.
+2. Gradle 8.13 wrapper + AGP 8.13.2 dependency resolution.
 3. compileSdk 36 debug build.
 4. Android lint with abort-on-error.
 5. Debug APK artifact upload.

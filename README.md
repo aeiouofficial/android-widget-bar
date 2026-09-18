@@ -22,12 +22,12 @@ No root. No ROM changes. No launcher replacement. No accessibility service. No o
 Toolchain:
 
 - JDK 17
-- Gradle 8.13
+- Gradle 8.13 (project wrapper)
 - Android Gradle Plugin 8.13.2
 - compileSdk / targetSdk 36
 - minSdk 26
 
-GitHub Actions builds and lints the APK on every feature-branch push.
+GitHub Actions builds and lints the APK on every feature-branch push using the checked-in Gradle wrapper.
 
 ## ADB installation
 
