@@ -29,6 +29,15 @@ Toolchain:
 
 The branch is configured for GitHub Actions build, unit-test, lint, contract and APK audit gates. GitHub-hosted execution is currently account-blocked before runner startup by the repository owner's Actions billing/spending state; local JDK 17 / Gradle 8.13 verification remains the accepted evidence until that external block is cleared.
 
+## Widget placement
+
+The setup screen uses two safe placement paths:
+
+- Default launcher `com.android.launcher3` (AOSP/Lineage Launcher3): open the home screen and place **Widget Bar** manually from the launcher widget picker.
+- Other launchers: use Android's standard `requestPinAppWidget` flow. If that API is unsupported or rejects the request, setup falls back to the same manual picker instructions.
+
+No code writes to launcher databases or modifies launcher/system packages.
+
 ## ADB installation
 
 After building or downloading the debug APK:
@@ -38,7 +47,7 @@ adb install -r app-debug.apk
 adb shell am start -n com.aeiou.widgetbar/.SetupActivity
 ```
 
-Use the Android pin-widget confirmation or add **Widget Bar** from the launcher's widget picker. Pin completion is intentionally owned by the launcher; the setup activity does not install a success callback that can steal focus during workspace placement.
+On AOSP/Lineage Launcher3, tap **Open home screen**, then long-press an empty home-screen area → **Widgets** → search **Widget Bar** → drag it into place.
 
 Rollback:
 

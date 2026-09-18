@@ -9,6 +9,7 @@ providers = ROOT / "app/src/main/java/com/aeiou/widgetbar/ProviderTarget.java"
 picker = ROOT / "app/src/main/java/com/aeiou/widgetbar/PickerActivity.java"
 chat = ROOT / "app/src/main/java/com/aeiou/widgetbar/ChatGptNewChatActivity.java"
 setup = ROOT / "app/src/main/java/com/aeiou/widgetbar/SetupActivity.java"
+pin_policy = ROOT / "app/src/main/java/com/aeiou/widgetbar/LauncherPinPolicy.java"
 
 failures = []
 
@@ -24,6 +25,7 @@ providers_text = providers.read_text(encoding="utf-8")
 picker_text = picker.read_text(encoding="utf-8")
 chat_text = chat.read_text(encoding="utf-8")
 setup_text = setup.read_text(encoding="utf-8")
+pin_policy_text = pin_policy.read_text(encoding="utf-8")
 
 if "<uses-permission" in manifest_text:
     failures.append("Manifest must not request runtime/system permissions.")
@@ -53,10 +55,19 @@ if "https://chatgpt.com/" not in chat_text:
     failures.append("ChatGPT new-chat action must retain the browser fallback.")
 
 if "requestPinAppWidget(provider, null, null)" not in setup_text:
-    failures.append("Widget pinning must leave placement completion to the launcher.")
+    failures.append("Supported launchers must leave automatic pin completion to the launcher.")
 
 if "PendingIntent" in setup_text:
     failures.append("SetupActivity must not reintroduce a pin success callback.")
+
+if "LauncherPinPolicy.requiresManualPlacement" not in setup_text:
+    failures.append("SetupActivity must guard launchers that require manual widget placement.")
+
+if "openHomeForManualPlacement()" not in setup_text:
+    failures.append("SetupActivity must retain a manual placement fallback.")
+
+if "com.android.launcher3" not in pin_policy_text:
+    failures.append("AOSP/Lineage Launcher3 must use manual widget placement.")
 
 if failures:
     for failure in failures:
@@ -69,4 +80,5 @@ print("PASS: exactly one right-side ChatGPT icon")
 print("PASS: collapsed bar has no extra provider icons")
 print("PASS: drop-up providers = Google, YouTube, Instagram, TikTok")
 print("PASS: ChatGPT remains separate new-chat action")
-print("PASS: launcher owns widget pin completion")
+print("PASS: supported launchers own automatic widget pin completion")
+print("PASS: AOSP/Lineage Launcher3 uses safe manual placement")

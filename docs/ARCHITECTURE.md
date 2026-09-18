@@ -21,15 +21,20 @@ A standalone Android home-screen widget that replaces the stock search-bar workf
 - PickerActivity: translucent, permission-free drop-up UI anchored above the clicked widget using Intent source bounds.
 - SearchLauncher: provider-specific search routing with browser fallback.
 - ChatGptNewChatActivity: isolated ChatGPT new-chat/home route.
-- SetupActivity: optional launcher-assisted widget pin flow.
+- SetupActivity: safe launcher-aware widget placement entry point.
+- LauncherPinPolicy: isolates the default-launcher compatibility decision for unit testing.
 - WidgetPrefs: persistent selected-provider state.
 - IconLoader: uses installed app icons at runtime; no copied brand assets are bundled.
 
-## Widget pin ownership
+## Widget placement compatibility
 
-`SetupActivity` only requests the pin through `AppWidgetManager.requestPinAppWidget`. It deliberately passes no success callback. The launcher owns confirmation, workspace selection and final placement. This avoids the observed failure mode where a success callback relaunched `SetupActivity` while the launcher still had a pending widget placement with no committed screen/cell.
+The default HOME package is resolved at setup time. For `com.android.launcher3` (AOSP/Lineage Launcher3), setup deliberately avoids the external automatic pin request and opens the home screen with explicit manual widget-picker instructions.
 
-The ordinary launcher widget picker remains a supported alternative and must continue to discover **Widget Bar** through the exported `SearchBarWidgetProvider` metadata.
+This is a conservative compatibility path based on the affected device session, where launcher-assisted placement produced bound widget IDs without a visible committed workspace widget. The ordinary launcher widget picker did discover **Widget Bar**, so the provider remains available through the launcher-owned placement UI.
+
+Other launchers keep the standard `AppWidgetManager.requestPinAppWidget(provider, null, null)` flow. No success callback is supplied, so confirmation and workspace placement stay launcher-owned. If automatic pinning is unsupported or the request is rejected, setup falls back to the manual picker path.
+
+The app never edits launcher databases, workspace files, or system settings.
 
 ## Security properties
 
