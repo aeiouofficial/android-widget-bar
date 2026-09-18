@@ -1,58 +1,92 @@
 # Android Widget Bar
 
-Standalone Android home-screen search widget.
+Standalone Android home-screen search/create widget.
 
-## Current design
+## Interaction contract
 
-- Concept D minimal pill: no internal divider lines.
-- Left: active provider icon.
-- Center: active provider search hint.
-- Right: exactly one ChatGPT icon.
-- Tap left icon: compact drop-up with only the search field and Google / YouTube / Instagram / TikTok icons.
-- Tap center: same drop-up with search focused.
-- Pick a provider: its icon becomes the persistent active icon on the left.
-- Tap ChatGPT: open the native `chatgpt://` route in `com.openai.chatgpt`; browser fallback to chatgpt.com if the installed app does not resolve it.
+The widget is a single rounded pill:
+
+```text
+[ ACTIVE APP ] [ SEARCH / CREATE FIELD ] [ APP SELECTOR ]
+```
+
+- **Left:** exactly one active app icon.
+- **Center:** the current action label.
+- **Right:** exactly one neutral app-selector icon.
+- Right-side selector options: Google, YouTube, Instagram, TikTok, ChatGPT.
+- Selecting an app immediately moves that app to the left and persists the choice.
+- The right side always remains the selector.
+
+### Critical input rule
+
+**Tapping the left icon or center field never launches Google, YouTube, Instagram, TikTok, or ChatGPT.**
+
+A tap only activates Widget Bar's own editable composer. The provider app is opened **only after**:
+
+1. the user types a non-empty query/prompt into the bar; and
+2. explicitly presses the keyboard search/send action.
+
+Empty submit does nothing.
+
+### Search targets
+
+- Google: type query → press search → Google search opens.
+- YouTube: type query → press search → YouTube search opens.
+- Instagram: type query → press search → Instagram keyword search opens.
+- TikTok: type query → press search → TikTok search opens.
+- ChatGPT: type the new-chat prompt → press send/search → only then is ChatGPT opened with the typed prompt handed to the app.
+
+ChatGPT's collapsed label is **New chat**; its editable hint is **Ask ChatGPT…**.
+
+## Keyboard behavior
+
+The launcher-owned AppWidget itself is rendered with `RemoteViews`, which cannot host a normal free-form `EditText`.
+
+Widget Bar therefore activates its own transient, permission-free `SearchActivity` that redraws the same pill with a real `EditText`:
+
+```text
+[ ACTIVE APP ] [ EDITABLE TEXT ] [ APP SELECTOR ]
+```
+
+It uses Android IME resize plus the visible-window frame to keep the active bar **above the on-screen keyboard**, so typed text remains visible. This surface does not launch the selected provider until explicit submit.
+
+No overlay permission, accessibility service, root, launcher modification, or system mutation is used.
+
+## App selector
+
+The selector is a compact **icon-only** drop-up. It never contains a second search field.
+
+Targets:
+
+- Google
+- YouTube
+- Instagram
+- TikTok
+- ChatGPT
+
+## ChatGPT handoff
+
+On non-empty submit only:
+
+1. Widget Bar forwards the typed prompt to the installed ChatGPT app using Android's text-share intent contract.
+2. If that route is unavailable, the native `chatgpt://` new-chat route remains as fallback.
+3. Browser fallback is retained as a last resort.
+
+A plain tap while ChatGPT is selected must never open ChatGPT.
 
 ## Safety
 
-No root. No ROM changes. No launcher replacement. No accessibility service. No overlay permission. No dangerous permissions. No bundled third-party brand artwork; installed application icons are loaded at runtime.
+- no root
+- no ROM changes
+- no launcher replacement
+- no accessibility service
+- no draw-over-other-apps permission
+- no dangerous permissions
+- no launcher database mutation
+- installed application icons are loaded at runtime
 
-## Build
+## Verification
 
-Toolchain:
-
-- JDK 17
-- Gradle 8.13 (project wrapper)
-- Android Gradle Plugin 8.13.2
-- compileSdk / targetSdk 36
-- minSdk 26
-
-The branch is configured for GitHub Actions build, unit-test, lint, contract and APK audit gates. GitHub-hosted execution is currently account-blocked before runner startup by the repository owner's Actions billing/spending state; local JDK 17 / Gradle 8.13 verification remains the accepted evidence until that external block is cleared.
-
-## Widget placement
-
-The setup screen uses two safe placement paths:
-
-- Default launcher `com.android.launcher3` (AOSP/Lineage Launcher3): open the home screen and place **Widget Bar** manually from the launcher widget picker.
-- Other launchers: use Android's standard `requestPinAppWidget` flow. If that API is unsupported or rejects the request, setup falls back to the same manual picker instructions.
-
-No code writes to launcher databases or modifies launcher/system packages.
-
-## ADB installation
-
-After building or downloading the debug APK:
-
-```powershell
-adb install -r app-debug.apk
-adb shell am start -n com.aeiou.widgetbar/.SetupActivity
-```
-
-On AOSP/Lineage Launcher3, tap **Open home screen**, then long-press an empty home-screen area → **Widgets** → search **Widget Bar** → drag it into place.
-
-Rollback:
-
-```powershell
-adb uninstall com.aeiou.widgetbar
-```
+GitHub Actions quota is exhausted. Build, unit tests, lint, contract checks, and APK audit are therefore executed locally with the repository Gradle wrapper and JDK 17.
 
 See `docs/ARCHITECTURE.md` and `docs/TEST_PLAN.md`.

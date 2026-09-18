@@ -8,11 +8,23 @@ import android.net.Uri;
 final class SearchLauncher {
     private SearchLauncher() {}
 
-    static void launch(Context context, ProviderTarget target, String query) {
-        String trimmed = query == null ? "" : query.trim();
-        if (trimmed.isEmpty()) {
-            openAppHome(context, target);
-            return;
+    static boolean hasSubmitText(String query) {
+        return query != null && !query.trim().isEmpty();
+    }
+
+    static boolean launch(Context context, ProviderTarget target, String query) {
+        if (!hasSubmitText(query)) {
+            return false;
+        }
+
+        String trimmed = query.trim();
+
+        if (target.createAction) {
+            Intent create = new Intent(context, ChatGptNewChatActivity.class)
+                    .putExtra(ChatGptNewChatActivity.EXTRA_PROMPT, trimmed)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            context.startActivity(create);
+            return true;
         }
 
         if (target == ProviderTarget.GOOGLE) {
@@ -22,7 +34,7 @@ final class SearchLauncher {
             webSearch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             if (webSearch.resolveActivity(context.getPackageManager()) != null) {
                 context.startActivity(webSearch);
-                return;
+                return true;
             }
         }
 
@@ -32,40 +44,12 @@ final class SearchLauncher {
         appIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         if (appIntent.resolveActivity(context.getPackageManager()) != null) {
             context.startActivity(appIntent);
-            return;
+            return true;
         }
 
         Intent fallback = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
         fallback.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         context.startActivity(fallback);
-    }
-
-    private static void openAppHome(Context context, ProviderTarget target) {
-        Intent launch = context.getPackageManager().getLaunchIntentForPackage(target.packageName);
-        if (launch != null) {
-            launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            context.startActivity(launch);
-            return;
-        }
-
-        String home;
-        switch (target) {
-            case YOUTUBE:
-                home = "https://www.youtube.com/";
-                break;
-            case INSTAGRAM:
-                home = "https://www.instagram.com/";
-                break;
-            case TIKTOK:
-                home = "https://www.tiktok.com/";
-                break;
-            case GOOGLE:
-            default:
-                home = "https://www.google.com/";
-                break;
-        }
-        Intent browser = new Intent(Intent.ACTION_VIEW, Uri.parse(home));
-        browser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        context.startActivity(browser);
+        return true;
     }
 }

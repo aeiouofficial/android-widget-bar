@@ -39,6 +39,16 @@
             android:theme="@style/Theme.WidgetBar.Popup" />
 
         <activity
+            android:name=".SearchActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:launchMode="singleTop"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@style/Theme.WidgetBar.Popup"
+            android:windowSoftInputMode="adjustResize|stateAlwaysVisible" />
+
+        <activity
             android:name=".ChatGptNewChatActivity"
             android:excludeFromRecents="true"
             android:exported="false"

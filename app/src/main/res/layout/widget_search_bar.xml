@@ -33,10 +33,11 @@
         android:textSize="18sp" />
 
     <ImageView
-        android:id="@+id/chatgpt_icon"
+        android:id="@+id/selector_icon"
         android:layout_width="48dp"
         android:layout_height="48dp"
-        android:contentDescription="@string/new_chat"
-        android:padding="8dp"
+        android:contentDescription="@string/provider_button"
+        android:padding="11dp"
+        android:src="@drawable/ic_provider_picker"
         android:scaleType="fitCenter" />
 </LinearLayout>

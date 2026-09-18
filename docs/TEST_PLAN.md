@@ -1,48 +1,91 @@
 # Test plan
 
-## CI gates
+## Local code gates
 
-1. Source contract check: XML parse, zero requested permissions, HOME-launcher query visibility, one collapsed right-side ChatGPT icon, four search providers, native ChatGPT route, browser fallback, launcher-aware placement guard and no pin success callback.
-2. Gradle 8.13 wrapper + AGP 8.13.2 dependency resolution.
-3. compileSdk 36 debug build.
-4. JVM unit tests for provider persistence mapping and LauncherPinPolicy behavior.
-5. Android lint with abort-on-error.
-6. APK identity, SDK, permission, ZIP-alignment and signature audit.
-7. Debug APK artifact upload.
+Run locally because GitHub Actions quota is exhausted.
 
-## Current verified evidence
+1. Contract check:
+   - XML valid;
+   - zero requested permissions;
+   - collapsed widget has exactly active icon + center label + selector;
+   - selector targets Google / YouTube / Instagram / TikTok / ChatGPT;
+   - selector contains no `EditText`;
+   - left/center always opens only `SearchActivity`;
+   - collapsed widget never directly references `ChatGptNewChatActivity`;
+   - SearchActivity has no ChatGPT auto-launch branch;
+   - blank input is rejected before all provider branches;
+   - ChatGPT typed prompt is forwarded only after submit;
+   - IME resize and visible-frame repositioning are present.
+2. `:app:assembleDebug`.
+3. JVM unit tests.
+4. `:app:lintDebug`.
+5. APK package / SDK / permission / alignment / signature audit.
+6. `git diff --check`.
 
-- Native ChatGPT route: `chatgpt://` resolves through `com.openai.chatgpt/.ChatGptDeeplinkActivity` and lands in `.MainActivity` on ChatGPT Android 1.2026.251.
-- UI dump after that native launch showed the fresh composer action `ChatGPT fragen` and no prior conversation content.
-- The previous HTTPS app-link route was rejected because it ultimately resumed LineageOS Jelly instead of remaining in ChatGPT.
-- The feature branch previously completed the full local JDK 17 / Gradle 8.13 gate: build, JVM tests, lint, contract and APK audit.
-- The launcher widget picker does discover **Widget Bar**.
-- On the affected Launcher3 device session, launcher-assisted placement produced bound widget IDs without a visible committed workspace widget.
-- Final on-device verification of the new Launcher3 manual-placement path remains required.
+## Device interaction gates
 
-## Device validation before normal use
+### Selection
 
-1. Install the current branch APK with `adb install -r app-debug.apk`.
-2. Launch setup with `adb shell am start -n com.aeiou.widgetbar/.SetupActivity`.
-3. On default launcher `com.android.launcher3`: verify the setup button reads **Open home screen**, opens HOME, and shows manual placement instructions. Long-press an empty home-screen area → Widgets → search **Widget Bar** → drag it into place.
-4. On another compatible launcher: request one automatic widget pin and verify the launcher completes placement without `SetupActivity` being relaunched as a success callback.
-5. Verify exactly one new Widget Bar instance is visible on the workspace and that AppWidgetService reports the same provider/widget ID.
-6. Verify the collapsed widget has one active provider icon left, search hint center, and exactly one ChatGPT icon right.
-7. Tap the left provider icon: the drop-up must contain only the search field plus Google, YouTube, Instagram and TikTok icons.
-8. Switch each provider and confirm the selected icon immediately becomes the persistent left widget icon.
-9. Submit one query for each provider and verify the expected installed app or browser fallback opens.
-10. Tap the right ChatGPT icon and verify the installed ChatGPT version lands on a fresh/new-chat composer.
-11. Reboot and verify provider selection persists.
-12. Remove only the test widget/app and confirm no launcher/system package was modified.
+1. Add one Widget Bar instance.
+2. Tap selector.
+3. Verify icon-only drop-up: Google / YouTube / Instagram / TikTok / ChatGPT.
+4. Pick each target.
+5. Verify selected target moves to the left and persists.
 
-## Regression checks for placement
+### No premature launch
 
-- The manifest must make the HOME intent query-visible so launcher detection works under Android 11+ package visibility.
-- Launcher3 must not receive an external automatic pin request from SetupActivity.
-- Unsupported/rejected automatic pin requests must fall back to manual placement instructions.
-- SetupActivity must not use a pin success PendingIntent.
-- Manual placement must leave the launcher fully responsible for workspace selection and final widget placement.
+For **every target**, including ChatGPT:
 
-## Safety rollback
+1. tap left icon or center field;
+2. verify Widget Bar's editable surface opens;
+3. verify provider app has **not** opened;
+4. verify keyboard is shown;
+5. verify the editable bar is visible above the keyboard;
+6. type text and verify the text remains visible;
+7. press Back/cancel and verify provider app still never opened.
 
-The widget is an ordinary user APK. Removal is a single package uninstall; no system files are changed.
+### Empty submit
+
+For every target:
+
+1. activate editable surface;
+2. submit with empty/whitespace input;
+3. verify no provider app opens and the editable surface remains active.
+
+### Explicit submit
+
+For Google, YouTube, Instagram, TikTok:
+
+1. type a unique query;
+2. press keyboard search/send;
+3. only then verify the selected provider opens with that query.
+
+For ChatGPT:
+
+1. select ChatGPT;
+2. verify left icon is ChatGPT and collapsed center says **New chat**;
+3. tap field;
+4. verify ChatGPT does not open;
+5. type a unique prompt;
+6. press keyboard search/send;
+7. only then verify ChatGPT opens and receives the typed prompt/new-chat handoff.
+
+### Keyboard
+
+Test the widget in a low home-screen position:
+
+1. activate input;
+2. verify IME appears;
+3. verify active bar is repositioned above the IME;
+4. verify typed text and selector remain visible.
+
+### Persistence
+
+1. choose a provider;
+2. reboot;
+3. verify same provider remains selected;
+4. verify tap-vs-submit behavior is unchanged.
+
+## Safety
+
+Confirm no launcher/system package mutation and no additional permissions.
