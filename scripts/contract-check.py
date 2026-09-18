@@ -30,6 +30,9 @@ pin_policy_text = pin_policy.read_text(encoding="utf-8")
 if "<uses-permission" in manifest_text:
     failures.append("Manifest must not request runtime/system permissions.")
 
+if "android.intent.action.MAIN" not in manifest_text or "android.intent.category.HOME" not in manifest_text:
+    failures.append("Manifest must declare HOME intent visibility for default-launcher detection.")
+
 if layout_text.count("chatgpt_icon") != 1:
     failures.append("Collapsed widget must contain exactly one ChatGPT icon.")
 
@@ -76,6 +79,7 @@ if failures:
 
 print("PASS: XML parses")
 print("PASS: no requested permissions")
+print("PASS: HOME launcher intent is query-visible")
 print("PASS: exactly one right-side ChatGPT icon")
 print("PASS: collapsed bar has no extra provider icons")
 print("PASS: drop-up providers = Google, YouTube, Instagram, TikTok")

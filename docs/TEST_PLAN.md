@@ -2,7 +2,7 @@
 
 ## CI gates
 
-1. Source contract check: XML parse, zero requested permissions, one collapsed right-side ChatGPT icon, four search providers, native ChatGPT route, browser fallback, launcher-aware placement guard and no pin success callback.
+1. Source contract check: XML parse, zero requested permissions, HOME-launcher query visibility, one collapsed right-side ChatGPT icon, four search providers, native ChatGPT route, browser fallback, launcher-aware placement guard and no pin success callback.
 2. Gradle 8.13 wrapper + AGP 8.13.2 dependency resolution.
 3. compileSdk 36 debug build.
 4. JVM unit tests for provider persistence mapping and LauncherPinPolicy behavior.
@@ -37,6 +37,7 @@
 
 ## Regression checks for placement
 
+- The manifest must make the HOME intent query-visible so launcher detection works under Android 11+ package visibility.
 - Launcher3 must not receive an external automatic pin request from SetupActivity.
 - Unsupported/rejected automatic pin requests must fall back to manual placement instructions.
 - SetupActivity must not use a pin success PendingIntent.

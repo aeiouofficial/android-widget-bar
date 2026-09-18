@@ -28,7 +28,9 @@ A standalone Android home-screen widget that replaces the stock search-bar workf
 
 ## Widget placement compatibility
 
-The default HOME package is resolved at setup time. For `com.android.launcher3` (AOSP/Lineage Launcher3), setup deliberately avoids the external automatic pin request and opens the home screen with explicit manual widget-picker instructions.
+The default HOME package is resolved at setup time. Because the app targets Android 11+, the manifest declares the HOME intent signature under `<queries>` so package-visibility filtering does not hide the default launcher from `PackageManager.resolveActivity`.
+
+For `com.android.launcher3` (AOSP/Lineage Launcher3), setup deliberately avoids the external automatic pin request and opens the home screen with explicit manual widget-picker instructions.
 
 This is a conservative compatibility path based on the affected device session, where launcher-assisted placement produced bound widget IDs without a visible committed workspace widget. The ordinary launcher widget picker did discover **Widget Bar**, so the provider remains available through the launcher-owned placement UI.
 
