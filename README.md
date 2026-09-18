@@ -11,7 +11,7 @@ Standalone Android home-screen search widget.
 - Tap left icon: compact drop-up with only the search field and Google / YouTube / Instagram / TikTok icons.
 - Tap center: same drop-up with search focused.
 - Pick a provider: its icon becomes the persistent active icon on the left.
-- Tap ChatGPT: open the ChatGPT root/new-chat route; browser fallback if the installed app does not claim it.
+- Tap ChatGPT: open the native `chatgpt://` route in `com.openai.chatgpt`; browser fallback to chatgpt.com if the installed app does not resolve it.
 
 ## Safety
 
@@ -27,18 +27,18 @@ Toolchain:
 - compileSdk / targetSdk 36
 - minSdk 26
 
-GitHub Actions builds and lints the APK on every feature-branch push using the checked-in Gradle wrapper.
+The branch is configured for GitHub Actions build, unit-test, lint, contract and APK audit gates. GitHub-hosted execution is currently account-blocked before runner startup by the repository owner's Actions billing/spending state; local JDK 17 / Gradle 8.13 verification remains the accepted evidence until that external block is cleared.
 
 ## ADB installation
 
-After downloading the CI artifact:
+After building or downloading the debug APK:
 
 ```powershell
 adb install -r app-debug.apk
 adb shell am start -n com.aeiou.widgetbar/.SetupActivity
 ```
 
-Use the Android pin-widget confirmation or add **Widget Bar** from the launcher's widget picker.
+Use the Android pin-widget confirmation or add **Widget Bar** from the launcher's widget picker. Pin completion is intentionally owned by the launcher; the setup activity does not install a success callback that can steal focus during workspace placement.
 
 Rollback:
 
