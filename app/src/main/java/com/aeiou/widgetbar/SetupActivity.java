@@ -1,10 +1,8 @@
 package com.aeiou.widgetbar;
 
 import android.app.Activity;
-import android.app.PendingIntent;
 import android.appwidget.AppWidgetManager;
 import android.content.ComponentName;
-import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.os.Bundle;
@@ -60,11 +58,7 @@ public final class SetupActivity extends Activity {
             return;
         }
 
-        Intent callbackIntent = new Intent(this, SetupActivity.class);
-        PendingIntent success = PendingIntent.getActivity(
-                this, 100, callbackIntent,
-                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-        manager.requestPinAppWidget(provider, null, success);
+        manager.requestPinAppWidget(provider, null, null);
     }
 
     private int dp(int value) {
