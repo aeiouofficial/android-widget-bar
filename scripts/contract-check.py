@@ -65,8 +65,23 @@ if '"New chat"' not in providers_text or '"Ask ChatGPT…"' not in providers_tex
 if "ProviderTarget.values()" not in picker_text:
     failures.append("Right-side selector must render the selectable app icon set.")
 
+if "setOrientation(LinearLayout.VERTICAL)" not in picker_text:
+    failures.append("Selector must be a vertical drop-up, not a horizontal row.")
+
+if "anchorTopY - selector.getHeight() - gap" not in picker_text:
+    failures.append("Selector must be positioned fully above its anchor without overlap.")
+
 if "EditText" in picker_text:
     failures.append("Selector drop-up must contain icons only, never a second search field.")
+
+if 'android:id="@+id/widget_pill"' not in layout_text:
+    failures.append("Collapsed widget must use a dedicated compact pill container.")
+
+if 'android:layout_height="48dp"' not in layout_text or 'android:layout_gravity="center_vertical"' not in layout_text:
+    failures.append("Collapsed pill must stay compact and visually match edit mode.")
+
+if 'android:background="@drawable/widget_pill"' not in layout_text:
+    failures.append("Compact collapsed pill must use the same pill styling as edit mode.")
 
 if "R.id.selector_icon" not in widget_text or "new Intent(context, PickerActivity.class)" not in widget_text:
     failures.append("Right-side selector must open PickerActivity.")
@@ -145,7 +160,8 @@ print("PASS: XML parses")
 print("PASS: no requested permissions")
 print("PASS: collapsed bar = active app left + action text center + selector right")
 print("PASS: selector targets = Google, YouTube, Instagram, TikTok, ChatGPT")
-print("PASS: selector drop-up contains icons only")
+print("PASS: selector is vertical, icon-only, and fully above the bar")
+print("PASS: collapsed widget stays compact and matches edit-mode pill geometry")
 print("PASS: tapping left/center opens only the local editable surface")
 print("PASS: no provider app launches from a plain widget tap")
 print("PASS: launcher widget is hidden while editing, so no duplicate bar remains visible")

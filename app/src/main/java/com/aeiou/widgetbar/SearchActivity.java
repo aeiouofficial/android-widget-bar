@@ -166,13 +166,14 @@ public final class SearchActivity extends Activity {
         }
 
         Intent selector = new Intent(this, PickerActivity.class);
-        int[] location = new int[2];
-        selectorButton.getLocationOnScreen(location);
-        selector.setSourceBounds(new Rect(
-                location[0],
-                location[1],
-                location[0] + selectorButton.getWidth(),
-                location[1] + selectorButton.getHeight()));
+        if (sourceBounds != null && !sourceBounds.isEmpty()) {
+            int selectorWidth = dp(40);
+            selector.setSourceBounds(new Rect(
+                    Math.max(sourceBounds.left, sourceBounds.right - selectorWidth),
+                    sourceBounds.top,
+                    sourceBounds.right,
+                    sourceBounds.bottom));
+        }
         startActivity(selector);
         finish();
     }

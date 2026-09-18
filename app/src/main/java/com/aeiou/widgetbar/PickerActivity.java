@@ -6,7 +6,6 @@ import android.graphics.Rect;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.view.Gravity;
-import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
 import android.widget.FrameLayout;
@@ -17,13 +16,19 @@ import java.util.EnumMap;
 import java.util.Map;
 
 public final class PickerActivity extends Activity {
-    private final Map<ProviderTarget, ImageButton> providerButtons = new EnumMap<>(ProviderTarget.class);
+    private static final int ITEM_SIZE_DP = 48;
+    private static final int GAP_DP = 6;
+
+    private final Map<ProviderTarget, ImageButton> providerButtons =
+            new EnumMap<>(ProviderTarget.class);
+
     private ProviderTarget selected;
     private LinearLayout selector;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        overridePendingTransition(0, 0);
         configureWindow();
         selected = WidgetPrefs.getProvider(this);
 
@@ -42,6 +47,12 @@ public final class PickerActivity extends Activity {
         selector.post(this::positionSelector);
     }
 
+    @Override
+    public void finish() {
+        super.finish();
+        overridePendingTransition(0, 0);
+    }
+
     private void configureWindow() {
         Window window = getWindow();
         window.setBackgroundDrawableResource(android.R.color.transparent);
@@ -50,30 +61,39 @@ public final class PickerActivity extends Activity {
     }
 
     private LinearLayout buildSelector() {
-        LinearLayout row = new LinearLayout(this);
-        row.setOrientation(LinearLayout.HORIZONTAL);
-        row.setGravity(Gravity.CENTER);
-        row.setPadding(dp(8), dp(6), dp(8), dp(6));
-        row.setBackground(rounded(0xF0222D31, 28, 0x806C858C, 1));
-        row.setOnClickListener(v -> { });
+        LinearLayout column = new LinearLayout(this);
+        column.setOrientation(LinearLayout.VERTICAL);
+        column.setGravity(Gravity.CENTER);
+        column.setPadding(dp(6), dp(6), dp(6), dp(6));
+        column.setBackground(rounded(0xF0222D31, 28, 0x806C858C, 1));
+        column.setOnClickListener(v -> { });
 
-        for (ProviderTarget target : ProviderTarget.values()) {
+        ProviderTarget[] targets = ProviderTarget.values();
+        for (int i = 0; i < targets.length; i++) {
+            ProviderTarget target = targets[i];
+
             ImageButton button = new ImageButton(this);
             button.setContentDescription(target.label);
             button.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
             button.setPadding(dp(8), dp(8), dp(8), dp(8));
             button.setImageBitmap(IconLoader.load(
-                    this, target.packageName, dp(44), target.label.substring(0, 1)));
+                    this,
+                    target.packageName,
+                    dp(44),
+                    target.label.substring(0, 1)));
             button.setOnClickListener(v -> select(target));
             providerButtons.put(target, button);
 
-            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(dp(48), dp(48));
-            lp.setMargins(dp(3), 0, dp(3), 0);
-            row.addView(button, lp);
+            LinearLayout.LayoutParams itemLp =
+                    new LinearLayout.LayoutParams(dp(ITEM_SIZE_DP), dp(ITEM_SIZE_DP));
+            if (i > 0) {
+                itemLp.topMargin = dp(GAP_DP);
+            }
+            column.addView(button, itemLp);
         }
 
         refreshSelection();
-        return row;
+        return column;
     }
 
     private void select(ProviderTarget target) {
@@ -95,35 +115,43 @@ public final class PickerActivity extends Activity {
     }
 
     private void positionSelector() {
-        FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) selector.getLayoutParams();
+        FrameLayout.LayoutParams lp =
+                (FrameLayout.LayoutParams) selector.getLayoutParams();
+
         Rect source = getIntent().getSourceBounds();
         int width = getResources().getDisplayMetrics().widthPixels;
         int height = getResources().getDisplayMetrics().heightPixels;
-        int margin = dp(10);
+        int edgeMargin = dp(10);
+        int gap = dp(8);
 
-        int right = source != null && !source.isEmpty()
-                ? source.right
-                : width - margin;
-        int top;
+        int anchorCenterX;
+        int anchorTopY;
+
         if (source != null && !source.isEmpty()) {
-            top = source.top - selector.getHeight() - dp(8);
+            anchorCenterX = source.centerX();
+            anchorTopY = source.top;
         } else {
-            // Launcher3 does not propagate sourceBounds for RemoteViews PendingIntents.
-            // Keep the icon-only selector safely on-screen in the same lower-home area
-            // where a search-bar widget normally lives instead of using a dp value that
-            // can place it below the physical display on high-density phones.
-            int anchorBottom = Math.round(height * 0.43f);
-            top = anchorBottom - selector.getHeight();
+            /*
+             * Launcher3 does not reliably propagate sourceBounds for RemoteViews
+             * PendingIntents. Keep the selector on the right edge and above the
+             * normal widget position instead of letting it overlap the widget.
+             */
+            anchorCenterX = width - dp(46);
+            anchorTopY = Math.round(height * 0.415f);
         }
 
+        int desiredLeft = anchorCenterX - selector.getWidth() / 2;
+        int desiredTop = anchorTopY - selector.getHeight() - gap;
+
         lp.leftMargin = clamp(
-                right - selector.getWidth(),
-                margin,
-                width - selector.getWidth() - margin);
+                desiredLeft,
+                edgeMargin,
+                width - selector.getWidth() - edgeMargin);
         lp.topMargin = clamp(
-                top,
-                margin,
-                height - selector.getHeight() - margin);
+                desiredTop,
+                edgeMargin,
+                height - selector.getHeight() - edgeMargin);
+
         selector.setLayoutParams(lp);
     }
 
@@ -132,11 +160,17 @@ public final class PickerActivity extends Activity {
         return Math.max(min, Math.min(max, value));
     }
 
-    private GradientDrawable rounded(int color, int radiusDp, int strokeColor, int strokeDp) {
+    private GradientDrawable rounded(
+            int color,
+            int radiusDp,
+            int strokeColor,
+            int strokeDp) {
         GradientDrawable drawable = new GradientDrawable();
         drawable.setColor(color);
         drawable.setCornerRadius(dp(radiusDp));
-        if (strokeDp > 0) drawable.setStroke(dp(strokeDp), strokeColor);
+        if (strokeDp > 0) {
+            drawable.setStroke(dp(strokeDp), strokeColor);
+        }
         return drawable;
     }
 

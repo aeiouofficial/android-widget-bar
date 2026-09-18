@@ -2,91 +2,72 @@
 
 Standalone Android home-screen search/create widget.
 
-## Interaction contract
+## Visual contract
 
-The widget is a single rounded pill:
+The widget always looks like one compact typing/search pill:
 
 ```text
 [ ACTIVE APP ] [ SEARCH / CREATE FIELD ] [ APP SELECTOR ]
 ```
 
+There is no separate large idle-state container. The persistent launcher widget and the active editable surface use the same compact 48dp pill geometry, spacing, background, border, left active-app icon, center field, and right selector control.
+
+## Interaction contract
+
 - **Left:** exactly one active app icon.
-- **Center:** the current action label.
+- **Center:** the current search/create action.
 - **Right:** exactly one neutral app-selector icon.
-- Right-side selector options: Google, YouTube, Instagram, TikTok, ChatGPT.
-- Selecting an app immediately moves that app to the left and persists the choice.
+- Selector targets: Google / YouTube / Instagram / TikTok / ChatGPT.
+- Selecting a target moves that app to the left and persists it.
 - The right side always remains the selector.
 
-### Critical input rule
+### Selector behavior
 
-**Tapping the left icon or center field never launches Google, YouTube, Instagram, TikTok, or ChatGPT.**
-
-A tap only activates Widget Bar's own editable composer. The provider app is opened **only after**:
-
-1. the user types a non-empty query/prompt into the bar; and
-2. explicitly presses the keyboard search/send action.
-
-Empty submit does nothing.
-
-### Search targets
-
-- Google: type query → press search → Google search opens.
-- YouTube: type query → press search → YouTube search opens.
-- Instagram: type query → press search → Instagram keyword search opens.
-- TikTok: type query → press search → TikTok search opens.
-- ChatGPT: type the new-chat prompt → press send/search → only then is ChatGPT opened with the typed prompt handed to the app.
-
-ChatGPT's collapsed label is **New chat**; its editable hint is **Ask ChatGPT…**.
-
-## Keyboard behavior
-
-The launcher-owned AppWidget itself is rendered with `RemoteViews`, which cannot host a normal free-form `EditText`.
-
-Widget Bar therefore activates its own transient, permission-free `SearchActivity` that redraws the same pill with a real `EditText`:
+Tapping the selector opens an **icon-only vertical drop-up**.
 
 ```text
-[ ACTIVE APP ] [ EDITABLE TEXT ] [ APP SELECTOR ]
+            [ Google    ]
+            [ YouTube   ]
+            [ Instagram ]
+            [ TikTok    ]
+            [ ChatGPT   ]
+[ ACTIVE ][ FIELD      ][ SELECTOR ]
 ```
 
-It uses Android IME resize plus the visible-window frame to keep the active bar **above the on-screen keyboard**, so typed text remains visible. This surface does not launch the selected provider until explicit submit.
+The selector must be entirely above the bar with a visible gap. It must never expand horizontally to the left and must never overlap the main bar.
 
-No overlay permission, accessibility service, root, launcher modification, or system mutation is used.
+### Input behavior
 
-## App selector
+Tapping the left icon or center field never opens the provider directly.
 
-The selector is a compact **icon-only** drop-up. It never contains a second search field.
+A tap only activates Widget Bar's own editable field. The provider opens only after:
+1. non-empty text has been entered; and
+2. the user presses the keyboard search/send action.
 
-Targets:
+Blank/whitespace submit does nothing.
 
-- Google
-- YouTube
-- Instagram
-- TikTok
-- ChatGPT
+### Keyboard behavior
 
-## ChatGPT handoff
+The editable surface:
+- visually matches the persistent compact pill;
+- keeps the selected app icon on the left;
+- keeps the selector on the right;
+- uses `SOFT_INPUT_ADJUST_RESIZE`;
+- tracks the visible display frame;
+- moves above the keyboard when needed so typed text is always visible.
 
-On non-empty submit only:
+The launcher-owned widget is temporarily hidden while this active surface is shown, preventing a duplicate visible bar.
 
-1. Widget Bar forwards the typed prompt to the installed ChatGPT app using Android's text-share intent contract.
-2. If that route is unavailable, the native `chatgpt://` new-chat route remains as fallback.
-3. Browser fallback is retained as a last resort.
+## Provider behavior
 
-A plain tap while ChatGPT is selected must never open ChatGPT.
+- Google → query submit opens Google search.
+- YouTube → query submit opens YouTube search.
+- Instagram → query submit opens Instagram keyword search.
+- TikTok → query submit opens TikTok search.
+- ChatGPT → collapsed label **New chat**; editable hint **Ask ChatGPT…**; only a submitted non-empty prompt opens ChatGPT and forwards the typed text.
 
 ## Safety
 
-- no root
-- no ROM changes
-- no launcher replacement
-- no accessibility service
-- no draw-over-other-apps permission
-- no dangerous permissions
-- no launcher database mutation
-- installed application icons are loaded at runtime
-
-## Verification
-
-GitHub Actions quota is exhausted. Build, unit tests, lint, contract checks, and APK audit are therefore executed locally with the repository Gradle wrapper and JDK 17.
+No root, ROM changes, launcher replacement, accessibility service, draw-over-other-apps permission, dangerous permissions, or launcher database mutation.
 
 See `docs/ARCHITECTURE.md` and `docs/TEST_PLAN.md`.

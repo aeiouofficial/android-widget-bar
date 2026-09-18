@@ -1,91 +1,67 @@
 # Test plan
 
-## Local code gates
+## Local gates
 
-Run locally because GitHub Actions quota is exhausted.
+1. XML parses.
+2. No requested permissions.
+3. Collapsed layout contains:
+   - one active app icon;
+   - one center action field;
+   - one selector icon.
+4. Collapsed layout uses a dedicated fixed 48dp `widget_pill` centered inside a transparent AppWidget root.
+5. Edit mode uses the same compact pill geometry.
+6. Selector is:
+   - vertical;
+   - icon-only;
+   - Google / YouTube / Instagram / TikTok / ChatGPT;
+   - fully above the bar;
+   - non-overlapping.
+7. Plain tap opens only the local editable surface.
+8. Empty submit cannot launch a provider.
+9. ChatGPT cannot open before prompt submit.
+10. Keyboard-aware edit surface uses resize + visible-frame repositioning.
+11. Gradle debug/release builds.
+12. Debug/release unit tests.
+13. Debug/release lint.
+14. APK audit and `git diff --check`.
 
-1. Contract check:
-   - XML valid;
-   - zero requested permissions;
-   - collapsed widget has exactly active icon + center label + selector;
-   - selector targets Google / YouTube / Instagram / TikTok / ChatGPT;
-   - selector contains no `EditText`;
-   - left/center always opens only `SearchActivity`;
-   - collapsed widget never directly references `ChatGptNewChatActivity`;
-   - SearchActivity has no ChatGPT auto-launch branch;
-   - blank input is rejected before all provider branches;
-   - ChatGPT typed prompt is forwarded only after submit;
-   - IME resize and visible-frame repositioning are present.
-2. `:app:assembleDebug`.
-3. JVM unit tests.
-4. `:app:lintDebug`.
-5. APK package / SDK / permission / alignment / signature audit.
-6. `git diff --check`.
+## Device validation
 
-## Device interaction gates
+### Idle appearance
 
-### Selection
+- Persistent bar must visually match the compact edit-mode bar.
+- No large/tall background block around the idle widget.
+- Left icon, center text, and right selector must have the same spacing as edit mode.
 
-1. Add one Widget Bar instance.
-2. Tap selector.
-3. Verify icon-only drop-up: Google / YouTube / Instagram / TikTok / ChatGPT.
-4. Pick each target.
-5. Verify selected target moves to the left and persists.
+### Selector
 
-### No premature launch
+1. Tap right selector.
+2. Verify five icons form one vertical column.
+3. Verify the column grows upward.
+4. Verify there is a visible gap between the list and the main bar.
+5. Verify the list does not extend horizontally over the bar.
+6. Pick each target and verify it moves left.
 
-For **every target**, including ChatGPT:
+### Input
 
-1. tap left icon or center field;
-2. verify Widget Bar's editable surface opens;
-3. verify provider app has **not** opened;
-4. verify keyboard is shown;
-5. verify the editable bar is visible above the keyboard;
-6. type text and verify the text remains visible;
-7. press Back/cancel and verify provider app still never opened.
+1. Tap left or center.
+2. Verify provider app does not open.
+3. Verify active bar remains compact.
+4. Verify keyboard appears.
+5. Verify bar moves above keyboard if necessary.
+6. Type text and verify it remains visible.
+7. Press search/send.
+8. Only then verify selected provider opens.
 
-### Empty submit
+### ChatGPT
 
-For every target:
-
-1. activate editable surface;
-2. submit with empty/whitespace input;
-3. verify no provider app opens and the editable surface remains active.
-
-### Explicit submit
-
-For Google, YouTube, Instagram, TikTok:
-
-1. type a unique query;
-2. press keyboard search/send;
-3. only then verify the selected provider opens with that query.
-
-For ChatGPT:
-
-1. select ChatGPT;
-2. verify left icon is ChatGPT and collapsed center says **New chat**;
-3. tap field;
-4. verify ChatGPT does not open;
-5. type a unique prompt;
-6. press keyboard search/send;
-7. only then verify ChatGPT opens and receives the typed prompt/new-chat handoff.
-
-### Keyboard
-
-Test the widget in a low home-screen position:
-
-1. activate input;
-2. verify IME appears;
-3. verify active bar is repositioned above the IME;
-4. verify typed text and selector remain visible.
+1. Select ChatGPT.
+2. Verify left icon = ChatGPT, center = **New chat**.
+3. Tap bar: ChatGPT must remain closed.
+4. Type prompt.
+5. Submit.
+6. Only then verify ChatGPT opens with the prompt handoff.
 
 ### Persistence
 
-1. choose a provider;
-2. reboot;
-3. verify same provider remains selected;
-4. verify tap-vs-submit behavior is unchanged.
-
-## Safety
-
-Confirm no launcher/system package mutation and no additional permissions.
+Reboot and confirm selected target remains selected.

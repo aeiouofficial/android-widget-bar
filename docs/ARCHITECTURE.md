@@ -1,100 +1,77 @@
 # Architecture
 
-## UI model
+## Visual authority
 
-Persistent launcher widget:
-
-```text
-[ active app ] [ action label ] [ selector ]
-```
-
-Editable active surface:
+Persistent widget and edit mode are two renderings of the same compact pill:
 
 ```text
-[ active app ] [ EditText ] [ selector ]
+[ active app ][ center action/input ][ selector ]
 ```
 
-The active surface visually replaces the interaction role of the launcher widget while input is in progress; it is not a second provider search widget.
+The launcher host can allocate more vertical cell space than the visual bar needs. Therefore the AppWidget root remains transparent and contains a dedicated fixed-height 48dp `widget_pill` child centered vertically. This prevents the idle widget background from expanding to the full launcher cell height.
 
-## State
+`SearchActivity` reproduces the same 48dp pill geometry for real text input.
 
-`WidgetPrefs` stores one `ProviderTarget`:
+## Selector
 
+`PickerActivity` is a translucent icon-only selector.
+
+It is strictly vertical:
+
+```text
+Google
+YouTube
+Instagram
+TikTok
+ChatGPT
+```
+
+The list is positioned completely above the selector anchor with a gap. It never renders as a horizontal row and never overlaps the main widget bar.
+
+Launcher3 does not reliably propagate `sourceBounds` for RemoteViews PendingIntents. When source bounds are unavailable, `PickerActivity` uses a conservative right-edge fallback positioned above the normal widget area.
+
+When the selector is opened from `SearchActivity`, it anchors to the original widget source bounds when available, not to the keyboard-shifted edit bar.
+
+## Tap vs submit
+
+A plain tap on the active app icon or center area opens only `SearchActivity`.
+
+No provider app is launched at tap time.
+
+Only a non-empty explicit IME search/send action can call `SearchLauncher.launch(...)`.
+
+## Keyboard handling
+
+`SearchActivity`:
+- uses `SOFT_INPUT_ADJUST_RESIZE`;
+- observes `getWindowVisibleDisplayFrame(...)`;
+- repositions the compact bar above the IME;
+- hides the launcher-owned RemoteViews widget while editing;
+- restores it on pause/finish;
+- uses zero transition animation.
+
+## Provider state
+
+`WidgetPrefs` persists the selected `ProviderTarget`.
+
+Targets:
 - Google
 - YouTube
 - Instagram
 - TikTok
 - ChatGPT
 
-Selection changes:
-
-1. user taps the right selector;
-2. `PickerActivity` shows only app icons;
-3. user selects target;
-4. target is persisted;
-5. all Widget Bar instances update;
-6. selected app appears on the left.
-
-## Tap vs submit
-
-This distinction is mandatory.
-
-### Tap
-
-Left icon or center area:
-
-- opens only `SearchActivity`;
-- focuses the local `EditText`;
-- shows the IME;
-- does **not** open the selected provider.
-
-### Submit
-
-Only a non-empty IME search/send action calls `SearchLauncher.launch(...)`.
-
-`SearchLauncher` rejects null/blank input before any provider-specific branch. Therefore no provider app can open from an empty submit or a plain tap.
-
-## SearchActivity
-
-`SearchActivity` is translucent and permission-free.
-
-Responsibilities:
-
-- render active app icon;
-- render a real editable center field;
-- preserve selector on the right;
-- request IME;
-- use `SOFT_INPUT_ADJUST_RESIZE`;
-- observe `getWindowVisibleDisplayFrame(...)`;
-- move the bar above the keyboard when the original launcher position would be occluded;
-- call `SearchLauncher` only from explicit non-empty submit.
-
-ChatGPT is handled by the same editable surface as all search providers. Selecting ChatGPT never bypasses the input step.
-
-## Provider routing
-
-- Google: `ACTION_WEB_SEARCH`, URL fallback.
-- YouTube: targeted search URL, browser fallback.
-- Instagram: targeted keyword-search URL, browser fallback.
-- TikTok: targeted search URL, browser fallback.
-- ChatGPT: typed prompt is passed to `ChatGptNewChatActivity` only after submit.
+ChatGPT follows the same edit-first rule as every other provider.
 
 ## ChatGPT handoff
 
-For a non-empty prompt:
-
-- primary: targeted Android `ACTION_SEND` with `text/plain` and `Intent.EXTRA_TEXT` to `com.openai.chatgpt`;
-- native fallback: `chatgpt://`;
-- final fallback: `https://chatgpt.com/?q=...`.
-
-This preserves the invariant that the ChatGPT app is not opened until the user has entered a prompt and submitted it.
-
-## Selector
-
-`PickerActivity` is a translucent icon-only selector. It contains no `EditText`, no duplicate search bar, and no provider action. Its only responsibility is target selection.
+After a non-empty prompt submit:
+- targeted Android text-share intent to `com.openai.chatgpt`;
+- native `chatgpt://` fallback;
+- browser fallback as last resort.
 
 ## Launcher safety
 
-Launcher3 uses manual widget placement. Other compatible launchers use `requestPinAppWidget(provider, null, null)`.
+Launcher3 uses normal manual widget placement. Other compatible launchers may use standard `requestPinAppWidget`.
 
-The app does not edit launcher databases, workspace files, packages, or system settings.
+No launcher database/workspace/system mutation is performed.
