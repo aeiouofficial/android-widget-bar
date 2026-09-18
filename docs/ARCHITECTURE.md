@@ -25,6 +25,12 @@ A standalone Android home-screen widget that replaces the stock search-bar workf
 - WidgetPrefs: persistent selected-provider state.
 - IconLoader: uses installed app icons at runtime; no copied brand assets are bundled.
 
+## Widget pin ownership
+
+`SetupActivity` only requests the pin through `AppWidgetManager.requestPinAppWidget`. It deliberately passes no success callback. The launcher owns confirmation, workspace selection and final placement. This avoids the observed failure mode where a success callback relaunched `SetupActivity` while the launcher still had a pending widget placement with no committed screen/cell.
+
+The ordinary launcher widget picker remains a supported alternative and must continue to discover **Widget Bar** through the exported `SearchBarWidgetProvider` metadata.
+
 ## Security properties
 
 The app requests no dangerous permissions, no root, no accessibility service, no draw-over-other-apps permission, and no network permission. Search navigation is delegated to installed apps or the user's browser through Android intents.
