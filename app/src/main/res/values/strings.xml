@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Widget Bar</string>
+    <string name="widget_description">Minimal switchable search bar with a ChatGPT new-chat shortcut</string>
+    <string name="provider_button">Choose search provider</string>
+    <string name="new_chat">Open a new ChatGPT chat</string>
+    <string name="search_web">Search the web…</string>
+</resources>

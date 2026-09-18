@@ -1,0 +1,30 @@
+# Architecture
+
+## Goal
+
+A standalone Android home-screen widget that replaces the stock search-bar workflow without modifying the launcher or any system package.
+
+## Interaction contract
+
+- The left icon is always the currently selected search provider.
+- The middle text is the active provider's search hint.
+- The right side contains exactly one icon: ChatGPT.
+- Tapping the active provider icon opens a compact drop-up containing only the search field and provider icons.
+- Tapping the search hint opens the same drop-up with the search field focused.
+- Selecting Google, YouTube, Instagram, or TikTok updates the left icon immediately.
+- Submitting the search opens the selected provider.
+- Tapping ChatGPT attempts to open the ChatGPT root App Link, which is the cleanest public route for a fresh/home composer. If the installed app does not claim that route, the browser fallback opens chatgpt.com.
+
+## Components
+
+- SearchBarWidgetProvider: RemoteViews widget renderer and click wiring.
+- PickerActivity: translucent, permission-free drop-up UI anchored above the clicked widget using Intent source bounds.
+- SearchLauncher: provider-specific search routing with browser fallback.
+- ChatGptNewChatActivity: isolated ChatGPT new-chat/home route.
+- SetupActivity: optional launcher-assisted widget pin flow.
+- WidgetPrefs: persistent selected-provider state.
+- IconLoader: uses installed app icons at runtime; no copied brand assets are bundled.
+
+## Security properties
+
+The app requests no dangerous permissions, no root, no accessibility service, no draw-over-other-apps permission, and no network permission. Search navigation is delegated to installed apps or the user's browser through Android intents.
