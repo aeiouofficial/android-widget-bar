@@ -2,21 +2,22 @@
 
 ## CI gates
 
-1. Gradle 8.13 + AGP 8.13.2 dependency resolution.
-2. compileSdk 36 debug build.
-3. Android lint with abort-on-error.
-4. Debug APK artifact upload.
+1. Source contract check: XML parse, zero requested permissions, one collapsed right-side ChatGPT icon, four search providers.
+2. Gradle 8.13 + AGP 8.13.2 dependency resolution.
+3. compileSdk 36 debug build.
+4. Android lint with abort-on-error.
+5. Debug APK artifact upload.
 
 ## Device validation before normal use
 
 1. Install with `adb install -r app-debug.apk`.
 2. Launch setup with `adb shell am start -n com.aeiou.widgetbar/.SetupActivity`.
 3. Pin the widget using the launcher confirmation.
-4. Verify the collapsed widget has one provider icon left, search hint center, and exactly one ChatGPT icon right.
-5. Tap left provider icon: only search field + Google/ChatGPT? No: provider picker must contain Google, YouTube, Instagram and TikTok icons; ChatGPT remains a separate right-side action and is not a search provider.
-6. Switch each provider and confirm the active icon becomes the left widget icon.
+4. Verify the collapsed widget has one active provider icon left, search hint center, and exactly one ChatGPT icon right.
+5. Tap the left provider icon: the drop-up must contain only the search field plus Google, YouTube, Instagram and TikTok icons.
+6. Switch each provider and confirm the selected icon immediately becomes the persistent left widget icon.
 7. Submit one query for each provider and verify the expected installed app or browser fallback opens.
-8. Tap the right ChatGPT icon and verify the installed ChatGPT version lands on its root/new-chat composer. If not, capture the installed package's supported links before changing the routing code.
+8. Tap the right ChatGPT icon and verify the installed ChatGPT version lands on a fresh/new-chat composer. If it does not, inspect that installed app version's supported App Links before changing the route.
 9. Reboot and verify provider selection persists.
 10. Uninstall with `adb uninstall com.aeiou.widgetbar`; confirm no launcher/system package was modified.
 
