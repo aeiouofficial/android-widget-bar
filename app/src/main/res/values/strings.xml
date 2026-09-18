@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Widget Bar</string>
+    <string name="setup_body">Google / YouTube / Instagram / TikTok search on the left.\nChatGPT new chat on the right.\n\nNo root, overlay, accessibility, or system modification.</string>
+    <string name="add_widget">Add widget</string>
+    <string name="pin_unsupported">Launcher does not support pin requests. Add Widget Bar from the home-screen widget picker.</string>
     <string name="widget_description">Minimal switchable search bar with a ChatGPT new-chat shortcut</string>
     <string name="provider_button">Choose search provider</string>
     <string name="new_chat">Open a new ChatGPT chat</string>

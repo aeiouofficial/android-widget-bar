@@ -29,21 +29,21 @@ public final class SetupActivity extends Activity {
         root.setBackgroundColor(0xFF10191D);
 
         TextView title = new TextView(this);
-        title.setText("Widget Bar");
+        title.setText(R.string.app_name);
         title.setTextColor(Color.WHITE);
         title.setTextSize(28f);
         title.setTypeface(Typeface.DEFAULT_BOLD);
         root.addView(title);
 
         TextView body = new TextView(this);
-        body.setText("\nGoogle / YouTube / Instagram / TikTok search on the left.\nChatGPT new chat on the right.\n\nNo root, overlay, accessibility, or system modification.");
+        body.setText(R.string.setup_body);
         body.setTextColor(0xFFC9D6D8);
         body.setTextSize(16f);
         body.setGravity(Gravity.CENTER);
         root.addView(body);
 
         Button add = new Button(this);
-        add.setText("Add widget");
+        add.setText(R.string.add_widget);
         add.setOnClickListener(v -> requestWidgetPin());
         LinearLayout.LayoutParams buttonLp = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, dp(54));
@@ -56,7 +56,7 @@ public final class SetupActivity extends Activity {
         AppWidgetManager manager = AppWidgetManager.getInstance(this);
         ComponentName provider = new ComponentName(this, SearchBarWidgetProvider.class);
         if (!manager.isRequestPinAppWidgetSupported()) {
-            Toast.makeText(this, "Launcher does not support pin requests. Add Widget Bar from the home-screen widget picker.", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, R.string.pin_unsupported, Toast.LENGTH_LONG).show();
             return;
         }
 
