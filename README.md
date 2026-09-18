@@ -4,32 +4,23 @@ Standalone Android home-screen search/create widget.
 
 ## Visual contract
 
-The widget always looks like one compact 48dp pill:
+The widget is always one compact 48dp pill:
 
 ```text
-[ ACTIVE APP ] [ SEARCH / CREATE FIELD ] [ APP SELECTOR ]
+[ ACTIVE APP ] [ CURRENT MODE / INPUT ] [ APP SELECTOR ]
 ```
 
-- left: exactly one active app icon
-- center: current search/create field
-- right: exactly one app-selector icon
-- idle and edit mode use the same compact visual geometry
-- selector opens vertically upward without overlapping the main bar
+- left: active app icon
+- center: current mode label or editable field
+- right: app selector
+- idle and edit mode share the same pill geometry
+- both left mode menu and right app selector open vertically upward without overlapping the main bar
 
-## Interaction contract
+## Controls
 
-### Center writing bar
+### Right icon: choose app
 
-- **Single tap:** activates Widget Bar's own editable field and keyboard.
-- **Double-tap:** opens the currently selected app normally, without running a search.
-- **Submit:** only a non-empty query/prompt followed by the keyboard search/send action opens the selected provider with that content.
-- Empty/whitespace submit does nothing.
-
-Double-tap detection is handled by gesture-aware `SearchActivity`. During Android's standard double-tap window, the activity first allows very early second taps to pass through to the launcher so the same widget PendingIntent can be delivered again; once its window has focus, later second taps are captured directly. If no second tap arrives, the widget switches into the editable surface and opens the keyboard. A valid second tap opens the selected app normally instead of starting text entry.
-
-### Right selector
-
-Tap the right selector to choose:
+Available apps:
 
 - Google
 - YouTube
@@ -37,48 +28,89 @@ Tap the right selector to choose:
 - TikTok
 - ChatGPT
 
-The selected app moves to the left and persists.
+The selected app becomes the left icon and its last selected mode is restored. Each app starts with its primary search/new-chat mode by default.
 
-### ChatGPT left-icon quick actions
+### Left app icon: choose mode
 
-When ChatGPT is selected, tapping the **left ChatGPT icon** opens a compact adapted quick-action menu:
+The left icon now opens a provider-scoped mode menu for **every** app.
 
-- voice conversation
-- camera capture
-- image upload/photo picker
-- dictation/recording
+**Google**
+- Search
+- Gemini
 
-These are implemented with supported Android contracts rather than copied internal ChatGPT widget code:
+**YouTube**
+- Search
+- Shorts
+- Subscriptions
 
-- voice: ChatGPT's verified `https://chatgpt.com/voice` app deep link
-- camera: Android camera capture to an app-created MediaStore image, then targeted image share to ChatGPT
-- photo: Android system photo picker/document fallback, then targeted image share to ChatGPT
-- dictation: Android speech recognizer, then the recognized text is handed to the existing ChatGPT new-chat prompt flow
+**Instagram**
+- Search
+- Story
+- Reel
+- Messages
 
-No additional runtime/system permissions are requested by Widget Bar.
+**TikTok**
+- Search
+- Create
+- Inbox
+
+**ChatGPT**
+- New chat
+- Voice
+- Camera
+- Photo
+- Dictation
+
+Mode choice is persisted independently per provider. Text modes stay selected for typing; non-text modes such as Instagram Story/Reel/Messages, YouTube Shorts, TikTok Create, or ChatGPT Camera execute immediately when their icon is chosen.
+
+### Center bar
+
+- **Single tap, text mode:** after double-tap disambiguation, opens Widget Bar's editable field and keyboard.
+- **Selecting an action mode from the left menu:** launches it immediately. No extra center-bar tap is required.
+- **Double-tap:** opens the selected app normally, regardless of mode.
+- **Submit:** text modes open the selected destination only after non-empty text is entered and the keyboard search/send action is pressed.
+
+## Verified mode routes
+
+- Google Search → Google web search.
+- Google Gemini → Android `PROCESS_TEXT` targeted to the installed Google app. On the test device this opens Gemini and pre-fills the exact text typed into Widget Bar.
+- YouTube Shorts → YouTube's installed launcher shortcut action `com.google.android.youtube.action.open.shorts`.
+- YouTube Subscriptions → installed launcher shortcut action `com.google.android.youtube.action.open.subscriptions`.
+- Instagram Story → `instagram://story-camera`.
+- Instagram Reel → `instagram://reels-camera`.
+- Instagram Messages → `instagram://direct-inbox`.
+- TikTok Create → `snssdk1233://aweme/create`.
+- TikTok Inbox → `snssdk1233://aweme/notification`.
+- ChatGPT Voice / Camera / Photo / Dictation → existing verified Widget Bar media routes.
+
+Instagram does not expose a stable external shortcut that can address an arbitrary friend by username. The reliable mode therefore opens Direct Messages; a specific conversation can then be chosen in Instagram.
 
 ## Keyboard behavior
 
-The persistent launcher AppWidget uses RemoteViews, so free-form typing is handled by a transient permission-free `SearchActivity`.
+Text modes use a transient permission-free `SearchActivity` because Android launcher `RemoteViews` cannot host a normal free-form `EditText`.
 
 It:
 
 - visually matches the same compact pill
-- keeps the selected app icon left and selector right
-- uses IME resize and visible-frame tracking
-- moves above the keyboard so typed text stays visible
-- temporarily hides the launcher-owned widget to prevent a duplicate visible bar
+- keeps the active app icon left and app selector right
+- supports the same left mode picker while editing
+- uses IME resize and visible-window tracking
+- moves above the keyboard so typed text remains visible
+- temporarily hides the launcher-owned widget so there is never a duplicate visible bar
 
-## Provider behavior
+## Double-tap behavior
 
-- Google → search after explicit submit
-- YouTube → search after explicit submit
-- Instagram → keyword search after explicit submit
-- TikTok → search after explicit submit
-- ChatGPT → typed prompt handed to ChatGPT after explicit submit
+The center uses a gesture-aware `SearchActivity`.
+
+- very early second taps pass through the temporarily non-touchable transparent activity and re-trigger the same widget PendingIntent
+- once the activity has focus, later second taps in the Android double-tap window are captured directly
+- a valid double-tap opens the selected app's normal launcher activity
+- if the window expires with only one tap, the selected text/action mode starts
 
 ## Safety
 
 No root, ROM changes, launcher replacement, accessibility service, draw-over-other-apps permission, dangerous permissions, or launcher database mutation.
 
-See `docs/ARCHITECTURE.md` and `docs/TEST_PLAN.md`.
+The stable snapshot before this mode expansion is preserved as GitHub prerelease **v0.1.0-working**.
+
+See `docs/ARCHITECTURE.md`, `docs/MODE_ROUTES.md`, and `docs/TEST_PLAN.md`.

@@ -21,7 +21,7 @@
             android:id="@+id/provider_icon"
             android:layout_width="40dp"
             android:layout_height="40dp"
-            android:contentDescription="@string/provider_button"
+            android:contentDescription="@string/mode_button"
             android:padding="6dp"
             android:scaleType="fitCenter" />
 

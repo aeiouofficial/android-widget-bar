@@ -13,6 +13,7 @@ import android.os.SystemClock;
 import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
+import android.view.View;
 import android.view.ViewConfiguration;
 import android.view.Window;
 import android.view.WindowManager;
@@ -33,9 +34,11 @@ public final class SearchActivity extends Activity {
     private final Handler handler = new Handler(Looper.getMainLooper());
 
     private ProviderTarget selected;
+    private ProviderMode selectedMode;
     private FrameLayout root;
     private LinearLayout searchBar;
     private EditText searchField;
+    private ImageView activeIcon;
     private ImageButton selectorButton;
     private Rect sourceBounds;
 
@@ -52,6 +55,7 @@ public final class SearchActivity extends Activity {
         overridePendingTransition(0, 0);
 
         selected = WidgetPrefs.getProvider(this);
+        selectedMode = WidgetPrefs.getMode(this, selected);
         sourceBounds = getIntent().getSourceBounds();
         gestureAware = getIntent().getBooleanExtra(EXTRA_WIDGET_DOUBLE_TAP, false);
         configureWindow();
@@ -59,12 +63,12 @@ public final class SearchActivity extends Activity {
         root = new FrameLayout(this);
         root.setBackgroundColor(Color.TRANSPARENT);
         root.setOnClickListener(v -> {
-            if (editingActive) {
-                finish();
-            }
+            if (editingActive) finish();
         });
 
         searchBar = buildSearchBar();
+        searchBar.setVisibility(gestureAware ? View.INVISIBLE : View.VISIBLE);
+
         FrameLayout.LayoutParams barLp = new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 dp(BAR_HEIGHT_DP));
@@ -82,8 +86,7 @@ public final class SearchActivity extends Activity {
         if (gestureAware) {
             armDoubleTapWindow();
         } else {
-            activateEditing();
-            beginEditingSoon(120);
+            performSingleTapAction();
         }
     }
 
@@ -94,9 +97,7 @@ public final class SearchActivity extends Activity {
 
         boolean incomingGestureAware =
                 intent.getBooleanExtra(EXTRA_WIDGET_DOUBLE_TAP, false);
-        if (!incomingGestureAware) {
-            return;
-        }
+        if (!incomingGestureAware) return;
 
         long now = SystemClock.elapsedRealtime();
         if (waitingForSecondTap
@@ -117,11 +118,6 @@ public final class SearchActivity extends Activity {
     public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
         if (hasFocus && waitingForSecondTap) {
-            /*
-             * Very early second taps reach the launcher while this window is
-             * not touchable. Once our window has focus, make it touchable and
-             * catch the rest of the standard double-tap interval here.
-             */
             clearTapPassthrough();
         }
     }
@@ -144,7 +140,7 @@ public final class SearchActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
-        if (!gestureAware && !editingActive) {
+        if (!gestureAware && !editingActive && selectedMode.acceptsText) {
             activateEditing();
         }
     }
@@ -179,33 +175,42 @@ public final class SearchActivity extends Activity {
         firstTapAt = SystemClock.elapsedRealtime();
         doubleTapTimeout = ViewConfiguration.getDoubleTapTimeout();
         waitingForSecondTap = true;
+        searchBar.setVisibility(View.INVISIBLE);
 
         /*
-         * During the double-tap window this Activity stays transparent and
-         * non-touchable. The second physical tap therefore reaches the same
-         * launcher RemoteViews PendingIntent and arrives here via onNewIntent.
-         * This avoids races where a just-created Activity steals the second tap.
+         * Very early second taps must still reach the launcher widget.
+         * Once this transparent window gains focus, onWindowFocusChanged()
+         * clears NOT_TOUCHABLE and later second taps are captured directly.
          */
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE);
         SearchBarWidgetProvider.setEditing(this, false);
 
         beginEditingRunnable = () -> {
-            if (!waitingForSecondTap) {
-                return;
-            }
+            if (!waitingForSecondTap) return;
             waitingForSecondTap = false;
             clearTapPassthrough();
-            activateEditing();
-            beginEditing();
+            performSingleTapAction();
         };
         handler.postDelayed(beginEditingRunnable, doubleTapTimeout);
     }
 
-    private void activateEditing() {
-        if (editingActive) {
+    private void performSingleTapAction() {
+        beginEditingRunnable = null;
+
+        if (!selectedMode.acceptsText) {
+            SearchLauncher.launchAction(this, selectedMode);
+            finish();
             return;
         }
+
+        activateEditing();
+        beginEditingSoon(80);
+    }
+
+    private void activateEditing() {
+        if (editingActive) return;
         editingActive = true;
+        searchBar.setVisibility(View.VISIBLE);
         SearchBarWidgetProvider.setEditing(this, true);
     }
 
@@ -224,6 +229,8 @@ public final class SearchActivity extends Activity {
 
     private void beginEditing() {
         beginEditingRunnable = null;
+        if (!selectedMode.acceptsText) return;
+
         searchField.requestFocus();
         searchField.post(() -> {
             InputMethodManager imm =
@@ -256,8 +263,8 @@ public final class SearchActivity extends Activity {
         row.setBackground(rounded(0xC2222D31, 34, 0x4D6C858C, 1));
         row.setOnClickListener(v -> { });
 
-        ImageView activeIcon = new ImageView(this);
-        activeIcon.setContentDescription(selected.label);
+        activeIcon = new ImageView(this);
+        activeIcon.setContentDescription(selected.label + " modes");
         activeIcon.setScaleType(ImageView.ScaleType.FIT_CENTER);
         activeIcon.setPadding(dp(6), dp(6), dp(6), dp(6));
         activeIcon.setImageBitmap(IconLoader.load(
@@ -265,6 +272,7 @@ public final class SearchActivity extends Activity {
                 selected.packageName,
                 dp(40),
                 selected.label.substring(0, 1)));
+        activeIcon.setOnClickListener(v -> openModePicker());
         row.addView(activeIcon, new LinearLayout.LayoutParams(dp(40), dp(40)));
 
         searchField = new EditText(this);
@@ -272,12 +280,12 @@ public final class SearchActivity extends Activity {
         searchField.setTextColor(Color.WHITE);
         searchField.setHintTextColor(0xFFB9C9CC);
         searchField.setTextSize(18f);
-        searchField.setHint(selected.inputHint);
+        searchField.setHint(selectedMode.inputHint);
         searchField.setImeOptions(EditorInfo.IME_ACTION_SEARCH);
         searchField.setInputType(android.text.InputType.TYPE_CLASS_TEXT);
         searchField.setPadding(dp(8), 0, dp(8), 0);
         searchField.setBackgroundColor(Color.TRANSPARENT);
-        searchField.setOnClickListener(v -> { });
+        searchField.setEnabled(selectedMode.acceptsText);
         searchField.setOnEditorActionListener((v, actionId, event) -> {
             boolean enter = event != null
                     && event.getKeyCode() == KeyEvent.KEYCODE_ENTER
@@ -309,12 +317,33 @@ public final class SearchActivity extends Activity {
         return row;
     }
 
-    private void openSelector() {
-        InputMethodManager imm =
-                (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
-        if (imm != null) {
-            imm.hideSoftInputFromWindow(searchField.getWindowToken(), 0);
+    private void openModePicker() {
+        hideKeyboard();
+
+        Intent modes = new Intent(this, ModePickerActivity.class);
+        if (sourceBounds != null && !sourceBounds.isEmpty()) {
+            int iconWidth = dp(40);
+            modes.setSourceBounds(new Rect(
+                    sourceBounds.left,
+                    sourceBounds.top,
+                    Math.min(sourceBounds.right, sourceBounds.left + iconWidth),
+                    sourceBounds.bottom));
+        } else {
+            int[] location = new int[2];
+            activeIcon.getLocationOnScreen(location);
+            modes.setSourceBounds(new Rect(
+                    location[0],
+                    location[1],
+                    location[0] + activeIcon.getWidth(),
+                    location[1] + activeIcon.getHeight()));
         }
+
+        startActivity(modes);
+        finish();
+    }
+
+    private void openSelector() {
+        hideKeyboard();
 
         Intent selector = new Intent(this, PickerActivity.class);
         if (sourceBounds != null && !sourceBounds.isEmpty()) {
@@ -329,16 +358,22 @@ public final class SearchActivity extends Activity {
         finish();
     }
 
+    private void hideKeyboard() {
+        InputMethodManager imm =
+                (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+        if (imm != null) {
+            imm.hideSoftInputFromWindow(searchField.getWindowToken(), 0);
+        }
+    }
+
     private void submit() {
-        if (SearchLauncher.launch(this, selected, searchField.getText().toString())) {
+        if (SearchLauncher.launch(this, selectedMode, searchField.getText().toString())) {
             finish();
         }
     }
 
     private void positionSearchBar() {
-        if (root == null || searchBar == null || searchBar.getHeight() == 0) {
-            return;
-        }
+        if (root == null || searchBar == null || searchBar.getHeight() == 0) return;
 
         Rect visible = new Rect();
         getWindow().getDecorView().getWindowVisibleDisplayFrame(visible);

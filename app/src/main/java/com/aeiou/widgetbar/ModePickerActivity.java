@@ -1,7 +1,6 @@
 package com.aeiou.widgetbar;
 
 import android.app.Activity;
-import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.Rect;
 import android.graphics.drawable.GradientDrawable;
@@ -13,11 +12,19 @@ import android.widget.FrameLayout;
 import android.widget.ImageButton;
 import android.widget.LinearLayout;
 
-public final class ChatGptActionsActivity extends Activity {
+import java.util.EnumMap;
+import java.util.Map;
+
+public final class ModePickerActivity extends Activity {
     private static final int ITEM_SIZE_DP = 48;
     private static final int GAP_DP = 6;
 
-    private LinearLayout actions;
+    private final Map<ProviderMode, ImageButton> modeButtons =
+            new EnumMap<>(ProviderMode.class);
+
+    private ProviderTarget provider;
+    private ProviderMode selected;
+    private LinearLayout modes;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -25,19 +32,22 @@ public final class ChatGptActionsActivity extends Activity {
         overridePendingTransition(0, 0);
         configureWindow();
 
+        provider = WidgetPrefs.getProvider(this);
+        selected = WidgetPrefs.getMode(this, provider);
+
         FrameLayout root = new FrameLayout(this);
         root.setBackgroundColor(Color.TRANSPARENT);
         root.setOnClickListener(v -> finish());
 
-        actions = buildActions();
+        modes = buildModes();
         FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.WRAP_CONTENT,
                 FrameLayout.LayoutParams.WRAP_CONTENT);
         lp.gravity = Gravity.TOP | Gravity.START;
-        root.addView(actions, lp);
+        root.addView(modes, lp);
 
         setContentView(root);
-        actions.post(this::positionActions);
+        modes.post(this::positionModes);
     }
 
     @Override
@@ -53,7 +63,7 @@ public final class ChatGptActionsActivity extends Activity {
         window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING);
     }
 
-    private LinearLayout buildActions() {
+    private LinearLayout buildModes() {
         LinearLayout column = new LinearLayout(this);
         column.setOrientation(LinearLayout.VERTICAL);
         column.setGravity(Gravity.CENTER);
@@ -61,56 +71,64 @@ public final class ChatGptActionsActivity extends Activity {
         column.setBackground(rounded(0xF0222D31, 28, 0x806C858C, 1));
         column.setOnClickListener(v -> { });
 
-        addAction(column, R.drawable.ic_voice, R.string.chatgpt_voice,
-                ChatGptMediaActivity.ACTION_VOICE, 0);
-        addAction(column, R.drawable.ic_camera, R.string.chatgpt_camera,
-                ChatGptMediaActivity.ACTION_CAMERA, 1);
-        addAction(column, R.drawable.ic_image, R.string.chatgpt_photo,
-                ChatGptMediaActivity.ACTION_PHOTO, 2);
-        addAction(column, R.drawable.ic_mic, R.string.chatgpt_dictation,
-                ChatGptMediaActivity.ACTION_DICTATION, 3);
+        ProviderMode[] providerModes = ProviderMode.modesFor(provider);
+        for (int i = 0; i < providerModes.length; i++) {
+            ProviderMode mode = providerModes[i];
 
+            ImageButton button = new ImageButton(this);
+            button.setImageResource(mode.iconRes);
+            button.setContentDescription(provider.label + ": " + mode.label);
+            button.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
+            button.setPadding(dp(9), dp(9), dp(9), dp(9));
+            button.setOnClickListener(v -> select(mode));
+            modeButtons.put(mode, button);
+
+            LinearLayout.LayoutParams itemLp =
+                    new LinearLayout.LayoutParams(dp(ITEM_SIZE_DP), dp(ITEM_SIZE_DP));
+            if (i > 0) itemLp.topMargin = dp(GAP_DP);
+            column.addView(button, itemLp);
+        }
+
+        refreshSelection();
         return column;
     }
 
-    private void addAction(
-            LinearLayout parent,
-            int iconRes,
-            int descriptionRes,
-            String action,
-            int index) {
-        ImageButton button = new ImageButton(this);
-        button.setImageResource(iconRes);
-        button.setContentDescription(getString(descriptionRes));
-        button.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
-        button.setPadding(dp(9), dp(9), dp(9), dp(9));
-        button.setBackground(rounded(0xB01D292D, 24, 0x806A8990, 1));
-        button.setOnClickListener(v -> {
-            startActivity(new Intent(this, ChatGptMediaActivity.class)
-                    .putExtra(ChatGptMediaActivity.EXTRA_ACTION, action));
-            finish();
-        });
+    private void select(ProviderMode mode) {
+        selected = mode;
+        WidgetPrefs.setMode(this, mode);
+        SearchBarWidgetProvider.updateAll(this);
 
-        LinearLayout.LayoutParams lp =
-                new LinearLayout.LayoutParams(dp(ITEM_SIZE_DP), dp(ITEM_SIZE_DP));
-        if (index > 0) {
-            lp.topMargin = dp(GAP_DP);
+        if (!mode.acceptsText) {
+            SearchLauncher.launchAction(this, mode);
         }
-        parent.addView(button, lp);
+
+        finish();
     }
 
-    private void positionActions() {
-        FrameLayout.LayoutParams lp =
-                (FrameLayout.LayoutParams) actions.getLayoutParams();
+    private void refreshSelection() {
+        for (Map.Entry<ProviderMode, ImageButton> entry : modeButtons.entrySet()) {
+            boolean active = entry.getKey() == selected;
+            entry.getValue().setBackground(rounded(
+                    active ? 0xCC314348 : 0xB01D292D,
+                    24,
+                    active ? 0xFF61E3EA : 0x806A8990,
+                    active ? 2 : 1));
+        }
+    }
 
+    private void positionModes() {
+        FrameLayout.LayoutParams lp =
+                (FrameLayout.LayoutParams) modes.getLayoutParams();
+
+        Rect source = getIntent().getSourceBounds();
         int width = getResources().getDisplayMetrics().widthPixels;
         int height = getResources().getDisplayMetrics().heightPixels;
         int edgeMargin = dp(10);
         int gap = dp(8);
 
-        Rect source = getIntent().getSourceBounds();
         int anchorCenterX;
         int anchorTopY;
+
         if (source != null && !source.isEmpty()) {
             anchorCenterX = source.centerX();
             anchorTopY = source.top;
@@ -119,19 +137,19 @@ public final class ChatGptActionsActivity extends Activity {
             anchorTopY = height - dp(240);
         }
 
-        int desiredLeft = anchorCenterX - actions.getWidth() / 2;
-        int desiredTop = anchorTopY - actions.getHeight() - gap;
+        int desiredLeft = anchorCenterX - modes.getWidth() / 2;
+        int desiredTop = anchorTopY - modes.getHeight() - gap;
 
         lp.leftMargin = clamp(
                 desiredLeft,
                 edgeMargin,
-                width - actions.getWidth() - edgeMargin);
+                width - modes.getWidth() - edgeMargin);
         lp.topMargin = clamp(
                 desiredTop,
                 edgeMargin,
-                height - actions.getHeight() - edgeMargin);
+                height - modes.getHeight() - edgeMargin);
 
-        actions.setLayoutParams(lp);
+        modes.setLayoutParams(lp);
     }
 
     private int clamp(int value, int min, int max) {
@@ -147,9 +165,7 @@ public final class ChatGptActionsActivity extends Activity {
         GradientDrawable drawable = new GradientDrawable();
         drawable.setColor(color);
         drawable.setCornerRadius(dp(radiusDp));
-        if (strokeDp > 0) {
-            drawable.setStroke(dp(strokeDp), strokeColor);
-        }
+        if (strokeDp > 0) drawable.setStroke(dp(strokeDp), strokeColor);
         return drawable;
     }
 

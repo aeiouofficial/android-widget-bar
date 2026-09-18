@@ -31,6 +31,7 @@ public final class SearchBarWidgetProvider extends AppWidgetProvider {
 
     private static RemoteViews buildViews(Context context, int widgetId, boolean editing) {
         ProviderTarget target = WidgetPrefs.getProvider(context);
+        ProviderMode mode = WidgetPrefs.getMode(context, target);
         RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.widget_search_bar);
 
         views.setViewVisibility(android.R.id.background, editing ? View.INVISIBLE : View.VISIBLE);
@@ -48,7 +49,7 @@ public final class SearchBarWidgetProvider extends AppWidgetProvider {
                         target.packageName,
                         iconPx,
                         target.label.substring(0, 1)));
-        views.setTextViewText(R.id.search_hint, target.collapsedHint);
+        views.setTextViewText(R.id.search_hint, mode.collapsedHint);
 
         Intent centerIntent = new Intent(context, SearchActivity.class)
                 .putExtra(SearchActivity.EXTRA_WIDGET_DOUBLE_TAP, true);
@@ -58,13 +59,11 @@ public final class SearchBarWidgetProvider extends AppWidgetProvider {
                 centerIntent,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 
-        Intent leftIntent = target == ProviderTarget.CHATGPT
-                ? new Intent(context, ChatGptActionsActivity.class)
-                : new Intent(context, SearchActivity.class);
-        PendingIntent leftPending = PendingIntent.getActivity(
+        Intent modeIntent = new Intent(context, ModePickerActivity.class);
+        PendingIntent modePending = PendingIntent.getActivity(
                 context,
                 widgetId * 10 + 2,
-                leftIntent,
+                modeIntent,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 
         Intent selectorIntent = new Intent(context, PickerActivity.class);
@@ -74,7 +73,7 @@ public final class SearchBarWidgetProvider extends AppWidgetProvider {
                 selectorIntent,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 
-        views.setOnClickPendingIntent(R.id.provider_icon, leftPending);
+        views.setOnClickPendingIntent(R.id.provider_icon, modePending);
         views.setOnClickPendingIntent(R.id.search_hint, centerPending);
         views.setOnClickPendingIntent(R.id.selector_icon, selectorPending);
         return views;

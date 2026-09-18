@@ -39,7 +39,7 @@
             android:theme="@style/Theme.WidgetBar.Popup" />
 
         <activity
-            android:name=".ChatGptActionsActivity"
+            android:name=".ModePickerActivity"
             android:excludeFromRecents="true"
             android:exported="false"
             android:launchMode="singleTop"

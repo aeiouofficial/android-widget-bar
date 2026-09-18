@@ -1,85 +1,164 @@
 # Architecture
 
+## Stable baseline
+
+The verified pre-mode-expansion snapshot is preserved at tag/release `v0.1.0-working`.
+
+Mode expansion work continues on `feat/app-mode-actions-v0.2`.
+
 ## Persistent widget
 
-The launcher-owned AppWidget is a transparent host containing one fixed 48dp pill:
+The launcher-owned AppWidget is a transparent host containing a fixed 48dp pill:
 
 ```text
-[ active app ][ center action ][ selector ]
+[ active app ][ current mode / input ][ app selector ]
 ```
 
-The idle widget and the editable surface intentionally share the same visual geometry.
+`SearchBarWidgetProvider` loads:
 
-## App selection
+1. active `ProviderTarget`
+2. that provider's persisted `ProviderMode`
+3. active app runtime icon
+4. the mode's collapsed center label
 
-`PickerActivity` is an icon-only vertical drop-up above the right selector.
+Click wiring:
 
-Targets:
+- left icon → `ModePickerActivity`
+- center → gesture-aware `SearchActivity`
+- right icon → `PickerActivity`
 
-- Google
-- YouTube
-- Instagram
-- TikTok
-- ChatGPT
+## Provider and mode state
 
-`WidgetPrefs` persists the selected target and all Widget Bar instances refresh after selection.
+`ProviderTarget` models the five apps.
 
-## Single tap vs double-tap
+`ProviderMode` models provider-scoped modes and classifies each as either:
 
-The center writing bar launches `SearchActivity` directly with a gesture-aware flag.
+- **text mode** — requires Widget Bar text entry and explicit submit
+- **action mode** — runs after the single-tap/double-tap timing window
 
-`SearchActivity` deliberately waits through Android's standard `ViewConfiguration.getDoubleTapTimeout()` before focusing the field and showing the IME. During that window it uses a hybrid route: very early second taps pass through the temporarily non-touchable transparent window and re-trigger the widget PendingIntent, while later taps are captured directly after the activity window gains focus.
+`WidgetPrefs` persists:
 
-Flow:
+- one active provider
+- one last-selected mode per provider
 
-1. first tap opens gesture-aware `SearchActivity`
-2. the original writing-bar bounds are retained from the launcher source bounds
-3. if a second physical tap lands inside those bounds before the timeout, `SearchLauncher.openAppHome(...)` opens the selected app normally
-4. if no second tap arrives, the local `EditText` is focused and the keyboard opens
+Defaults:
 
-This avoids a background-activity-start race while still allowing the second physical tap to be captured reliably in the foreground. `TapGesturePolicy` contains the pure timing rule and is JVM-tested.
+- Google Search
+- YouTube Search
+- Instagram Search
+- TikTok Search
+- ChatGPT New chat
 
-## Editable search surface
+## App selector
 
-`SearchActivity`:
+`PickerActivity` is the existing icon-only vertical drop-up on the right.
 
-- renders a real `EditText`
+Selecting an app updates the active provider. Its previously selected mode is restored automatically; if no mode was stored, its default is used.
+
+## Mode selector
+
+`ModePickerActivity` is a compact vertical drop-up anchored above the left app icon.
+
+It calls `ProviderMode.modesFor(provider)`, so only relevant modes appear. Selecting a text mode persists it, updates all widget instances, and closes the picker. Selecting a non-text action mode does the same and then immediately calls `SearchLauncher.launchAction(...)` before closing, so there is no redundant second center-bar tap.
+
+Current mode sets:
+
+- Google: Search, Gemini
+- YouTube: Search, Shorts, Subscriptions
+- Instagram: Search, Story, Reel, Messages
+- TikTok: Search, Create, Inbox
+- ChatGPT: New chat, Voice, Camera, Photo, Dictation
+
+## Center interaction
+
+`SearchActivity` owns single/double-tap disambiguation.
+
+### Double-tap
+
+A valid Android-timed double-tap calls `SearchLauncher.openAppHome(...)`, which prefers the selected package's launcher intent.
+
+### Text mode single tap
+
+After the double-tap timeout:
+
+1. launcher widget is hidden
+2. matching 48dp editable pill is shown
+3. keyboard is opened
+4. bar is moved above the IME if required
+5. explicit non-empty submit calls `SearchLauncher.launch(..., ProviderMode, query)`
+
+### Action mode single tap
+
+After the same double-tap timeout, no keyboard is shown. `SearchLauncher.launchAction(...)` runs the active action mode.
+
+## Mode routes
+
+### Google
+
+**Search** uses normal Google web-search routing.
+
+**Gemini** uses:
+
+```text
+ACTION_PROCESS_TEXT
+type = text/plain
+EXTRA_PROCESS_TEXT = typed Widget Bar text
+EXTRA_PROCESS_TEXT_READONLY = true
+package = com.google.android.googlequicksearchbox
+```
+
+This route was device-verified to open Gemini and prefill the exact query. It is preferable to Gemini URL query parameters, which opened Gemini but did not prefill the prompt on the test device.
+
+### YouTube
+
+Widget Bar uses the installed YouTube app's own launcher shortcut actions discovered from `cmd shortcut get-shortcuts`:
+
+- Shorts → `com.google.android.youtube.action.open.shorts`
+- Subscriptions → `com.google.android.youtube.action.open.subscriptions`
+
+Web URL fallbacks remain available.
+
+### Instagram
+
+Installed Instagram shortcuts/deep links verified on the test device:
+
+- Story → `instagram://story-camera`
+- Reel → `instagram://reels-camera`
+- Messages → `instagram://direct-inbox`
+
+Instagram's externally exposed shortcut set does not provide a stable arbitrary-user Direct-thread route. Widget Bar therefore opens the Direct inbox rather than fabricating an unsupported username-to-thread contract.
+
+### TikTok
+
+Resolved installed-app deep links:
+
+- Create → `snssdk1233://aweme/create`
+- Inbox → `snssdk1233://aweme/notification`
+
+On the current test device TikTok is not signed in, so those routes may land on TikTok's login flow until the user authenticates.
+
+### ChatGPT
+
+ChatGPT mode actions reuse `ChatGptMediaActivity`:
+
+- Voice
+- Camera
+- Photo
+- Dictation
+
+New-chat text submit retains its targeted text-share/native/browser fallback chain.
+
+## Keyboard handling
+
+For text modes `SearchActivity`:
+
 - uses `SOFT_INPUT_ADJUST_RESIZE`
-- tracks `getWindowVisibleDisplayFrame(...)`
-- moves above the IME when necessary
-- hides the launcher AppWidget during editing
+- observes `getWindowVisibleDisplayFrame(...)`
+- repositions the 48dp pill above the IME
+- hides the launcher widget during actual editing
 - restores it on pause/finish
-- calls `SearchLauncher.launch(...)` only from explicit non-empty submit
-
-## Normal app opening
-
-`SearchLauncher.openAppHome(...)` prefers the selected app's installed launcher intent. If unavailable it falls back to that service's normal web home.
-
-This route is only for the center-bar double-tap gesture.
-
-## ChatGPT left-icon actions
-
-When ChatGPT is selected, the left icon opens `ChatGptActionsActivity` instead of the normal tap router.
-
-The quick-action menu is vertical and anchored above the tapped icon when launcher source bounds are available.
-
-Actions:
-
-- **Voice:** `https://chatgpt.com/voice` targeted to `com.openai.chatgpt`
-- **Camera:** system camera capture to a MediaStore URI, then `ACTION_SEND image/*` targeted to ChatGPT
-- **Photo:** system photo picker / document fallback, then targeted `ACTION_SEND image/*`
-- **Dictation:** Android speech recognition, then recognized text is forwarded through `ChatGptNewChatActivity`
-
-This preserves the user's requested original-widget capabilities without depending on ChatGPT's private internal widget implementation.
-
-## ChatGPT text handoff
-
-Normal typed ChatGPT submit remains:
-
-- targeted Android text share to `com.openai.chatgpt`
-- native `chatgpt://` fallback
-- web fallback
+- allows the left mode picker and right app picker from edit mode
 
 ## Safety
 
-The app requests no dangerous permissions and does not modify launcher/system state.
+The app requests zero permissions and does not modify launcher databases, system packages, ROM state, or accessibility/overlay settings.
