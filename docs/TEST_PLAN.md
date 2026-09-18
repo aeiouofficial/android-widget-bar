@@ -7,7 +7,8 @@
 3. compileSdk 36 debug build.
 4. JVM unit tests for provider persistence mapping.
 5. Android lint with abort-on-error.
-6. Debug APK artifact upload.
+6. APK identity, SDK, permission, ZIP-alignment and signature audit.
+7. Debug APK artifact upload.
 
 ## Device validation before normal use
 
