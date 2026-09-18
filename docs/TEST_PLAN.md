@@ -5,8 +5,9 @@
 1. Source contract check: XML parse, zero requested permissions, one collapsed right-side ChatGPT icon, four search providers.
 2. Gradle 8.13 wrapper + AGP 8.13.2 dependency resolution.
 3. compileSdk 36 debug build.
-4. Android lint with abort-on-error.
-5. Debug APK artifact upload.
+4. JVM unit tests for provider persistence mapping.
+5. Android lint with abort-on-error.
+6. Debug APK artifact upload.
 
 ## Device validation before normal use
 

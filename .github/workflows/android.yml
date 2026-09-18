@@ -34,8 +34,8 @@ jobs:
       - name: Install Android 36 SDK
         run: sdkmanager "platforms;android-36" "build-tools;35.0.0"
 
-      - name: Build and lint
-        run: ./gradlew --no-daemon --stacktrace :app:assembleDebug :app:lintDebug
+      - name: Build, test and lint
+        run: ./gradlew --no-daemon --stacktrace :app:assembleDebug :app:testDebugUnitTest :app:lintDebug
 
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
