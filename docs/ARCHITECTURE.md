@@ -28,7 +28,7 @@ Targets:
 
 The center writing bar launches `SearchActivity` directly with a gesture-aware flag.
 
-`SearchActivity` immediately replaces the launcher-owned pill with the visually identical foreground pill, but deliberately waits through Android's standard `ViewConfiguration.getDoubleTapTimeout()` before focusing the field and showing the IME.
+`SearchActivity` deliberately waits through Android's standard `ViewConfiguration.getDoubleTapTimeout()` before focusing the field and showing the IME. During that window it uses a hybrid route: very early second taps pass through the temporarily non-touchable transparent window and re-trigger the widget PendingIntent, while later taps are captured directly after the activity window gains focus.
 
 Flow:
 

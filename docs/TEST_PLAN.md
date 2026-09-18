@@ -7,7 +7,7 @@
 3. Persistent pill remains compact 48dp.
 4. Right selector remains vertical, icon-only, and non-overlapping.
 5. Center writing-bar tap launches gesture-aware `SearchActivity` directly.
-6. Double-tap is captured in the foreground inside the original writing-bar bounds and opens the selected app normally.
+6. Double-tap is covered across the full Android timing window: early taps may re-trigger the widget PendingIntent, later taps are captured by the focused `SearchActivity`, and either path opens the selected app normally.
 7. Single tap opens only the local editable surface.
 8. Explicit non-empty submit is still required for provider search/create handoff.
 9. ChatGPT left icon exposes voice / camera / photo / dictation actions.

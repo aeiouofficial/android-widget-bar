@@ -25,7 +25,7 @@ The widget always looks like one compact 48dp pill:
 - **Submit:** only a non-empty query/prompt followed by the keyboard search/send action opens the selected provider with that content.
 - Empty/whitespace submit does nothing.
 
-Double-tap detection is handled inside the foreground `SearchActivity`: the first tap immediately swaps the launcher widget for the visually identical edit surface, a short Android-standard double-tap window stays active, and the keyboard is shown only after that window expires. A second tap inside the original writing-bar bounds opens the selected app normally instead of starting text entry.
+Double-tap detection is handled by gesture-aware `SearchActivity`. During Android's standard double-tap window, the activity first allows very early second taps to pass through to the launcher so the same widget PendingIntent can be delivered again; once its window has focus, later second taps are captured directly. If no second tap arrives, the widget switches into the editable surface and opens the keyboard. A valid second tap opens the selected app normally instead of starting text entry.
 
 ### Right selector
 

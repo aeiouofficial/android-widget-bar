@@ -39,7 +39,9 @@ public final class SearchActivity extends Activity {
     private ImageButton selectorButton;
     private Rect sourceBounds;
 
+    private boolean gestureAware;
     private boolean waitingForSecondTap;
+    private boolean editingActive;
     private long firstTapAt = -1L;
     private int doubleTapTimeout;
     private Runnable beginEditingRunnable;
@@ -51,11 +53,16 @@ public final class SearchActivity extends Activity {
 
         selected = WidgetPrefs.getProvider(this);
         sourceBounds = getIntent().getSourceBounds();
+        gestureAware = getIntent().getBooleanExtra(EXTRA_WIDGET_DOUBLE_TAP, false);
         configureWindow();
 
         root = new FrameLayout(this);
         root.setBackgroundColor(Color.TRANSPARENT);
-        root.setOnClickListener(v -> finish());
+        root.setOnClickListener(v -> {
+            if (editingActive) {
+                finish();
+            }
+        });
 
         searchBar = buildSearchBar();
         FrameLayout.LayoutParams barLp = new FrameLayout.LayoutParams(
@@ -72,19 +79,56 @@ public final class SearchActivity extends Activity {
         root.getViewTreeObserver().addOnGlobalLayoutListener(this::positionSearchBar);
         searchBar.post(this::positionSearchBar);
 
-        boolean gestureAware = getIntent().getBooleanExtra(EXTRA_WIDGET_DOUBLE_TAP, false);
         if (gestureAware) {
             armDoubleTapWindow();
         } else {
+            activateEditing();
             beginEditingSoon(120);
         }
     }
 
     @Override
-    public boolean dispatchTouchEvent(MotionEvent event) {
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+
+        boolean incomingGestureAware =
+                intent.getBooleanExtra(EXTRA_WIDGET_DOUBLE_TAP, false);
+        if (!incomingGestureAware) {
+            return;
+        }
+
+        long now = SystemClock.elapsedRealtime();
         if (waitingForSecondTap
-                && event.getActionMasked() == MotionEvent.ACTION_UP
-                && isInsideOriginalWritingBar(event)) {
+                && TapGesturePolicy.isDoubleTap(firstTapAt, now, doubleTapTimeout)) {
+            waitingForSecondTap = false;
+            cancelBeginEditing();
+            clearTapPassthrough();
+            SearchLauncher.openAppHome(this, selected);
+            finish();
+            return;
+        }
+
+        gestureAware = true;
+        armDoubleTapWindow();
+    }
+
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (hasFocus && waitingForSecondTap) {
+            /*
+             * Very early second taps reach the launcher while this window is
+             * not touchable. Once our window has focus, make it touchable and
+             * catch the rest of the standard double-tap interval here.
+             */
+            clearTapPassthrough();
+        }
+    }
+
+    @Override
+    public boolean dispatchTouchEvent(MotionEvent event) {
+        if (waitingForSecondTap && event.getActionMasked() == MotionEvent.ACTION_UP) {
             long now = SystemClock.elapsedRealtime();
             if (TapGesturePolicy.isDoubleTap(firstTapAt, now, doubleTapTimeout)) {
                 waitingForSecondTap = false;
@@ -100,40 +144,80 @@ public final class SearchActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
-        SearchBarWidgetProvider.setEditing(this, true);
+        if (!gestureAware && !editingActive) {
+            activateEditing();
+        }
     }
 
     @Override
     protected void onPause() {
         cancelBeginEditing();
-        SearchBarWidgetProvider.setEditing(this, false);
+        clearTapPassthrough();
+        if (editingActive) {
+            SearchBarWidgetProvider.setEditing(this, false);
+            editingActive = false;
+        }
         super.onPause();
     }
 
     @Override
     public void finish() {
         cancelBeginEditing();
-        SearchBarWidgetProvider.setEditing(this, false);
+        clearTapPassthrough();
+        if (editingActive) {
+            SearchBarWidgetProvider.setEditing(this, false);
+            editingActive = false;
+        }
         super.finish();
         overridePendingTransition(0, 0);
     }
 
     private void armDoubleTapWindow() {
+        cancelBeginEditing();
+        clearTapPassthrough();
+
         firstTapAt = SystemClock.elapsedRealtime();
         doubleTapTimeout = ViewConfiguration.getDoubleTapTimeout();
         waitingForSecondTap = true;
+
+        /*
+         * During the double-tap window this Activity stays transparent and
+         * non-touchable. The second physical tap therefore reaches the same
+         * launcher RemoteViews PendingIntent and arrives here via onNewIntent.
+         * This avoids races where a just-created Activity steals the second tap.
+         */
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE);
+        SearchBarWidgetProvider.setEditing(this, false);
 
         beginEditingRunnable = () -> {
             if (!waitingForSecondTap) {
                 return;
             }
             waitingForSecondTap = false;
+            clearTapPassthrough();
+            activateEditing();
             beginEditing();
         };
         handler.postDelayed(beginEditingRunnable, doubleTapTimeout);
     }
 
+    private void activateEditing() {
+        if (editingActive) {
+            return;
+        }
+        editingActive = true;
+        SearchBarWidgetProvider.setEditing(this, true);
+    }
+
+    private void clearTapPassthrough() {
+        Window window = getWindow();
+        if (window != null) {
+            window.clearFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE);
+        }
+    }
+
     private void beginEditingSoon(long delayMs) {
+        cancelBeginEditing();
         beginEditingRunnable = this::beginEditing;
         handler.postDelayed(beginEditingRunnable, delayMs);
     }
@@ -155,22 +239,6 @@ public final class SearchActivity extends Activity {
             handler.removeCallbacks(beginEditingRunnable);
             beginEditingRunnable = null;
         }
-    }
-
-    private boolean isInsideOriginalWritingBar(MotionEvent event) {
-        int x = Math.round(event.getRawX());
-        int y = Math.round(event.getRawY());
-
-        if (sourceBounds != null && !sourceBounds.isEmpty()) {
-            return sourceBounds.contains(x, y);
-        }
-
-        Rect currentBar = new Rect();
-        if (searchBar != null && searchBar.getGlobalVisibleRect(currentBar)) {
-            return currentBar.contains(x, y);
-        }
-
-        return true;
     }
 
     private void configureWindow() {
@@ -305,9 +373,7 @@ public final class SearchActivity extends Activity {
     }
 
     private int clamp(int value, int min, int max) {
-        if (max < min) {
-            return min;
-        }
+        if (max < min) return min;
         return Math.max(min, Math.min(max, value));
     }
 

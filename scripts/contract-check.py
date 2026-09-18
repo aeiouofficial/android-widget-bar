@@ -51,7 +51,7 @@ for activity in (
         failures.append(f"Manifest missing required activity: {activity}")
 
 if ".TapRouterReceiver" in manifest_text:
-    failures.append("TapRouterReceiver must not remain registered; double-tap is handled in the foreground SearchActivity.")
+    failures.append("TapRouterReceiver must not remain registered; double-tap is handled in SearchActivity.")
 
 if "android.intent.action.MAIN" not in manifest_text or "android.intent.category.HOME" not in manifest_text:
     failures.append("Manifest must declare HOME intent visibility for default-launcher detection.")
@@ -89,7 +89,7 @@ if "new Intent(context, SearchActivity.class)" not in widget_text:
     failures.append("Writing bar must open SearchActivity.")
 
 if "putExtra(SearchActivity.EXTRA_WIDGET_DOUBLE_TAP, true)" not in widget_text:
-    failures.append("Writing bar must mark SearchActivity as gesture-aware.")
+    failures.append("Writing bar must mark SearchActivity as double-tap aware.")
 
 if "new Intent(context, ChatGptActionsActivity.class)" not in widget_text:
     failures.append("Selected ChatGPT icon must expose ChatGPT quick actions.")
@@ -106,14 +106,20 @@ if "ViewConfiguration.getDoubleTapTimeout()" not in search_text:
 if "TapGesturePolicy.isDoubleTap" not in search_text:
     failures.append("SearchActivity must use the unit-tested double-tap timing policy.")
 
-if "dispatchTouchEvent" not in search_text:
-    failures.append("SearchActivity must capture the second physical tap in the foreground.")
+if "onNewIntent" not in search_text or "EXTRA_WIDGET_DOUBLE_TAP" not in search_text:
+    failures.append("SearchActivity must capture the second widget PendingIntent for double-tap.")
+
+if "FLAG_NOT_TOUCHABLE" not in search_text:
+    failures.append("SearchActivity must pass very early second taps through to the launcher during the double-tap window.")
+
+if "onWindowFocusChanged" not in search_text or "dispatchTouchEvent" not in search_text:
+    failures.append("SearchActivity must switch to direct foreground capture once its window is ready, covering later taps in the same double-tap window.")
 
 if "SearchLauncher.openAppHome(this, selected)" not in search_text:
     failures.append("Double-tap must open the selected app normally.")
 
 if "handler.postDelayed(beginEditingRunnable, doubleTapTimeout)" not in search_text:
-    failures.append("Single-tap editing must wait only through the double-tap disambiguation window.")
+    failures.append("Single-tap editing must wait through the double-tap disambiguation window.")
 
 if "searchField.requestFocus()" not in search_text or "showSoftInput" not in search_text:
     failures.append("Single tap must still activate the local editable surface and keyboard.")
