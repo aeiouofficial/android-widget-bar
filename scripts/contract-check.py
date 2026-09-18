@@ -44,8 +44,11 @@ if "CHATGPT" in providers_text:
 if "ProviderTarget.values()" not in picker_text:
     failures.append("Drop-up must render the provider icon set.")
 
-if "https://chatgpt.com/" not in chat_text or "com.openai.chatgpt" not in chat_text:
-    failures.append("ChatGPT new-chat action must target the ChatGPT app/root route.")
+if "chatgpt://" not in chat_text or "com.openai.chatgpt" not in chat_text:
+    failures.append("ChatGPT new-chat action must target the native ChatGPT app route.")
+
+if "https://chatgpt.com/" not in chat_text:
+    failures.append("ChatGPT new-chat action must retain the browser fallback.")
 
 if failures:
     for failure in failures:

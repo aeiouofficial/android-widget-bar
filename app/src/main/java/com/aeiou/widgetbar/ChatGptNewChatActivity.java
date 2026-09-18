@@ -7,7 +7,8 @@ import android.os.Bundle;
 
 public final class ChatGptNewChatActivity extends Activity {
     private static final String CHATGPT_PACKAGE = "com.openai.chatgpt";
-    private static final Uri NEW_CHAT_ROOT = Uri.parse("https://chatgpt.com/");
+    private static final Uri NATIVE_NEW_CHAT = Uri.parse("chatgpt://");
+    private static final Uri WEB_FALLBACK = Uri.parse("https://chatgpt.com/");
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -17,15 +18,15 @@ public final class ChatGptNewChatActivity extends Activity {
     }
 
     private void openNewChat() {
-        Intent appLink = new Intent(Intent.ACTION_VIEW, NEW_CHAT_ROOT);
-        appLink.setPackage(CHATGPT_PACKAGE);
-        appLink.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
-        if (appLink.resolveActivity(getPackageManager()) != null) {
-            startActivity(appLink);
+        Intent nativeNewChat = new Intent(Intent.ACTION_VIEW, NATIVE_NEW_CHAT);
+        nativeNewChat.setPackage(CHATGPT_PACKAGE);
+        nativeNewChat.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        if (nativeNewChat.resolveActivity(getPackageManager()) != null) {
+            startActivity(nativeNewChat);
             return;
         }
 
-        Intent web = new Intent(Intent.ACTION_VIEW, NEW_CHAT_ROOT);
+        Intent web = new Intent(Intent.ACTION_VIEW, WEB_FALLBACK);
         web.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
         startActivity(web);
     }

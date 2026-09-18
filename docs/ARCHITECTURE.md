@@ -13,7 +13,7 @@ A standalone Android home-screen widget that replaces the stock search-bar workf
 - Tapping the search hint opens the same drop-up with the search field focused.
 - Selecting Google, YouTube, Instagram, or TikTok updates the left icon immediately.
 - Submitting the search opens the selected provider.
-- Tapping ChatGPT attempts to open the ChatGPT root App Link, which is the cleanest public route for a fresh/home composer. If the installed app does not claim that route, the browser fallback opens chatgpt.com.
+- Tapping ChatGPT opens the native `chatgpt://` deep link in `com.openai.chatgpt`, which was device-verified against ChatGPT Android 1.2026.251 to land on a fresh empty composer. If the installed app does not resolve that native route, the browser fallback opens chatgpt.com.
 
 ## Components
 
