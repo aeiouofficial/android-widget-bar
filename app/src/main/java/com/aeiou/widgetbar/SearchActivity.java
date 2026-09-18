@@ -7,9 +7,13 @@ import android.graphics.Color;
 import android.graphics.Rect;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.os.SystemClock;
 import android.view.Gravity;
 import android.view.KeyEvent;
-import android.view.View;
+import android.view.MotionEvent;
+import android.view.ViewConfiguration;
 import android.view.Window;
 import android.view.WindowManager;
 import android.view.inputmethod.EditorInfo;
@@ -21,8 +25,12 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 
 public final class SearchActivity extends Activity {
+    static final String EXTRA_WIDGET_DOUBLE_TAP = "widget_double_tap";
+
     private static final int BAR_HEIGHT_DP = 48;
     private static final int EDGE_MARGIN_DP = 15;
+
+    private final Handler handler = new Handler(Looper.getMainLooper());
 
     private ProviderTarget selected;
     private FrameLayout root;
@@ -30,6 +38,11 @@ public final class SearchActivity extends Activity {
     private EditText searchField;
     private ImageButton selectorButton;
     private Rect sourceBounds;
+
+    private boolean waitingForSecondTap;
+    private long firstTapAt = -1L;
+    private int doubleTapTimeout;
+    private Runnable beginEditingRunnable;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -59,14 +72,29 @@ public final class SearchActivity extends Activity {
         root.getViewTreeObserver().addOnGlobalLayoutListener(this::positionSearchBar);
         searchBar.post(this::positionSearchBar);
 
-        searchField.requestFocus();
-        searchField.postDelayed(() -> {
-            InputMethodManager imm =
-                    (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
-            if (imm != null) {
-                imm.showSoftInput(searchField, InputMethodManager.SHOW_IMPLICIT);
+        boolean gestureAware = getIntent().getBooleanExtra(EXTRA_WIDGET_DOUBLE_TAP, false);
+        if (gestureAware) {
+            armDoubleTapWindow();
+        } else {
+            beginEditingSoon(120);
+        }
+    }
+
+    @Override
+    public boolean dispatchTouchEvent(MotionEvent event) {
+        if (waitingForSecondTap
+                && event.getActionMasked() == MotionEvent.ACTION_UP
+                && isInsideOriginalWritingBar(event)) {
+            long now = SystemClock.elapsedRealtime();
+            if (TapGesturePolicy.isDoubleTap(firstTapAt, now, doubleTapTimeout)) {
+                waitingForSecondTap = false;
+                cancelBeginEditing();
+                SearchLauncher.openAppHome(this, selected);
+                finish();
+                return true;
             }
-        }, 120);
+        }
+        return super.dispatchTouchEvent(event);
     }
 
     @Override
@@ -77,24 +105,79 @@ public final class SearchActivity extends Activity {
 
     @Override
     protected void onPause() {
+        cancelBeginEditing();
         SearchBarWidgetProvider.setEditing(this, false);
         super.onPause();
     }
 
     @Override
     public void finish() {
+        cancelBeginEditing();
         SearchBarWidgetProvider.setEditing(this, false);
         super.finish();
         overridePendingTransition(0, 0);
+    }
+
+    private void armDoubleTapWindow() {
+        firstTapAt = SystemClock.elapsedRealtime();
+        doubleTapTimeout = ViewConfiguration.getDoubleTapTimeout();
+        waitingForSecondTap = true;
+
+        beginEditingRunnable = () -> {
+            if (!waitingForSecondTap) {
+                return;
+            }
+            waitingForSecondTap = false;
+            beginEditing();
+        };
+        handler.postDelayed(beginEditingRunnable, doubleTapTimeout);
+    }
+
+    private void beginEditingSoon(long delayMs) {
+        beginEditingRunnable = this::beginEditing;
+        handler.postDelayed(beginEditingRunnable, delayMs);
+    }
+
+    private void beginEditing() {
+        beginEditingRunnable = null;
+        searchField.requestFocus();
+        searchField.post(() -> {
+            InputMethodManager imm =
+                    (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+            if (imm != null) {
+                imm.showSoftInput(searchField, InputMethodManager.SHOW_IMPLICIT);
+            }
+        });
+    }
+
+    private void cancelBeginEditing() {
+        if (beginEditingRunnable != null) {
+            handler.removeCallbacks(beginEditingRunnable);
+            beginEditingRunnable = null;
+        }
+    }
+
+    private boolean isInsideOriginalWritingBar(MotionEvent event) {
+        int x = Math.round(event.getRawX());
+        int y = Math.round(event.getRawY());
+
+        if (sourceBounds != null && !sourceBounds.isEmpty()) {
+            return sourceBounds.contains(x, y);
+        }
+
+        Rect currentBar = new Rect();
+        if (searchBar != null && searchBar.getGlobalVisibleRect(currentBar)) {
+            return currentBar.contains(x, y);
+        }
+
+        return true;
     }
 
     private void configureWindow() {
         Window window = getWindow();
         window.setBackgroundDrawableResource(android.R.color.transparent);
         window.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);
-        window.setSoftInputMode(
-                WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
-                        | WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE);
+        window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
     }
 
     private LinearLayout buildSearchBar() {

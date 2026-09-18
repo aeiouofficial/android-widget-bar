@@ -3,8 +3,12 @@
     <string name="app_name">Widget Bar</string>
     <string name="setup_body">Choose Google, YouTube, Instagram, TikTok, or ChatGPT from the right selector. The active app moves to the left; the center searches in that app or creates a new ChatGPT chat.
 
+Single tap edits; double-tap opens the selected app normally.
+
 No root, overlay, accessibility, or system modification.</string>
     <string name="setup_body_manual">Choose Google, YouTube, Instagram, TikTok, or ChatGPT from the right selector. The active app moves to the left; the center searches in that app or creates a new ChatGPT chat.
+
+Single tap edits; double-tap opens the selected app normally.
 
 This launcher uses manual widget placement. Tap below, then long-press an empty home-screen area → Widgets → search “Widget Bar” → drag it into place.</string>
     <string name="add_widget">Add widget</string>
@@ -13,4 +17,8 @@ This launcher uses manual widget placement. Tap below, then long-press an empty 
     <string name="widget_description">Minimal switchable search/create bar</string>
     <string name="provider_button">Choose app</string>
     <string name="search_web">Search the web…</string>
+    <string name="chatgpt_voice">Start voice conversation</string>
+    <string name="chatgpt_camera">Take photo</string>
+    <string name="chatgpt_photo">Choose photo</string>
+    <string name="chatgpt_dictation">Start dictation</string>
 </resources>

@@ -2,66 +2,68 @@
 
 ## Local gates
 
-1. XML parses.
-2. No requested permissions.
-3. Collapsed layout contains:
-   - one active app icon;
-   - one center action field;
-   - one selector icon.
-4. Collapsed layout uses a dedicated fixed 48dp `widget_pill` centered inside a transparent AppWidget root.
-5. Edit mode uses the same compact pill geometry.
-6. Selector is:
-   - vertical;
-   - icon-only;
-   - Google / YouTube / Instagram / TikTok / ChatGPT;
-   - fully above the bar;
-   - non-overlapping.
-7. Plain tap opens only the local editable surface.
-8. Empty submit cannot launch a provider.
-9. ChatGPT cannot open before prompt submit.
-10. Keyboard-aware edit surface uses resize + visible-frame repositioning.
-11. Gradle debug/release builds.
-12. Debug/release unit tests.
-13. Debug/release lint.
-14. APK audit and `git diff --check`.
+1. XML parse.
+2. Zero requested permissions.
+3. Persistent pill remains compact 48dp.
+4. Right selector remains vertical, icon-only, and non-overlapping.
+5. Center writing-bar tap launches gesture-aware `SearchActivity` directly.
+6. Double-tap is captured in the foreground inside the original writing-bar bounds and opens the selected app normally.
+7. Single tap opens only the local editable surface.
+8. Explicit non-empty submit is still required for provider search/create handoff.
+9. ChatGPT left icon exposes voice / camera / photo / dictation actions.
+10. Voice uses ChatGPT voice deep link.
+11. Camera uses system capture + targeted image share.
+12. Photo uses system picker + targeted image share.
+13. Dictation uses speech recognizer + ChatGPT prompt handoff.
+14. Debug build.
+15. JVM tests.
+16. Lint.
+17. APK audit.
+18. `git diff --check`.
 
 ## Device validation
 
-### Idle appearance
+### Center writing bar
 
-- Persistent bar must visually match the compact edit-mode bar.
-- No large/tall background block around the idle widget.
-- Left icon, center text, and right selector must have the same spacing as edit mode.
+For each selected target:
 
-### Selector
+1. single tap center once
+2. verify provider app does not open
+3. after the double-tap timeout, verify local edit field appears
+4. verify keyboard appears and field stays visible above it
+5. cancel and return home
+6. double-tap center within Android double-tap timing
+7. verify the selected app opens to its normal home, not to search results
 
-1. Tap right selector.
-2. Verify five icons form one vertical column.
-3. Verify the column grows upward.
-4. Verify there is a visible gap between the list and the main bar.
-5. Verify the list does not extend horizontally over the bar.
-6. Pick each target and verify it moves left.
+### Search submit
 
-### Input
+For each search provider:
 
-1. Tap left or center.
-2. Verify provider app does not open.
-3. Verify active bar remains compact.
-4. Verify keyboard appears.
-5. Verify bar moves above keyboard if necessary.
-6. Type text and verify it remains visible.
-7. Press search/send.
-8. Only then verify selected provider opens.
+1. single tap
+2. type unique query
+3. press search/send
+4. verify only then the selected provider opens with the query
 
-### ChatGPT
+For ChatGPT:
 
-1. Select ChatGPT.
-2. Verify left icon = ChatGPT, center = **New chat**.
-3. Tap bar: ChatGPT must remain closed.
-4. Type prompt.
-5. Submit.
-6. Only then verify ChatGPT opens with the prompt handoff.
+1. single tap center
+2. type prompt
+3. submit
+4. verify only then ChatGPT opens with prompt handoff
+
+### ChatGPT left icon
+
+With ChatGPT selected:
+
+1. tap the left ChatGPT icon
+2. verify a compact quick-action menu appears above the icon
+3. verify actions: voice, camera, photo upload, dictation
+4. voice → ChatGPT voice mode
+5. camera → camera UI → captured image handed to ChatGPT
+6. photo → Android photo picker → chosen image handed to ChatGPT
+7. dictation → speech recognizer → recognized text handed to ChatGPT
+8. verify Widget Bar itself requested no new runtime permissions
 
 ### Persistence
 
-Reboot and confirm selected target remains selected.
+Reboot and confirm selected provider remains selected.

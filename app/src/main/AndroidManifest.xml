@@ -39,6 +39,21 @@
             android:theme="@style/Theme.WidgetBar.Popup" />
 
         <activity
+            android:name=".ChatGptActionsActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:launchMode="singleTop"
+            android:taskAffinity=""
+            android:theme="@style/Theme.WidgetBar.Popup" />
+
+        <activity
+            android:name=".ChatGptMediaActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:taskAffinity=""
+            android:theme="@style/Theme.WidgetBar.Transparent" />
+
+        <activity
             android:name=".SearchActivity"
             android:excludeFromRecents="true"
             android:exported="false"
@@ -46,7 +61,7 @@
             android:noHistory="true"
             android:taskAffinity=""
             android:theme="@style/Theme.WidgetBar.Popup"
-            android:windowSoftInputMode="adjustResize|stateAlwaysVisible" />
+            android:windowSoftInputMode="adjustResize" />
 
         <activity
             android:name=".ChatGptNewChatActivity"

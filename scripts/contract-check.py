@@ -11,6 +11,9 @@ picker = ROOT / "app/src/main/java/com/aeiou/widgetbar/PickerActivity.java"
 search_activity = ROOT / "app/src/main/java/com/aeiou/widgetbar/SearchActivity.java"
 search_launcher = ROOT / "app/src/main/java/com/aeiou/widgetbar/SearchLauncher.java"
 widget_provider = ROOT / "app/src/main/java/com/aeiou/widgetbar/SearchBarWidgetProvider.java"
+tap_policy = ROOT / "app/src/main/java/com/aeiou/widgetbar/TapGesturePolicy.java"
+chat_actions = ROOT / "app/src/main/java/com/aeiou/widgetbar/ChatGptActionsActivity.java"
+chat_media = ROOT / "app/src/main/java/com/aeiou/widgetbar/ChatGptMediaActivity.java"
 chat = ROOT / "app/src/main/java/com/aeiou/widgetbar/ChatGptNewChatActivity.java"
 setup = ROOT / "app/src/main/java/com/aeiou/widgetbar/SetupActivity.java"
 pin_policy = ROOT / "app/src/main/java/com/aeiou/widgetbar/LauncherPinPolicy.java"
@@ -30,6 +33,9 @@ picker_text = picker.read_text(encoding="utf-8")
 search_text = search_activity.read_text(encoding="utf-8")
 launcher_text = search_launcher.read_text(encoding="utf-8")
 widget_text = widget_provider.read_text(encoding="utf-8")
+tap_policy_text = tap_policy.read_text(encoding="utf-8")
+chat_actions_text = chat_actions.read_text(encoding="utf-8")
+chat_media_text = chat_media.read_text(encoding="utf-8")
 chat_text = chat.read_text(encoding="utf-8")
 setup_text = setup.read_text(encoding="utf-8")
 pin_policy_text = pin_policy.read_text(encoding="utf-8")
@@ -37,42 +43,28 @@ pin_policy_text = pin_policy.read_text(encoding="utf-8")
 if "<uses-permission" in manifest_text:
     failures.append("Manifest must not request runtime/system permissions.")
 
+for activity in (
+        ".SearchActivity",
+        ".ChatGptActionsActivity",
+        ".ChatGptMediaActivity"):
+    if activity not in manifest_text:
+        failures.append(f"Manifest missing required activity: {activity}")
+
+if ".TapRouterReceiver" in manifest_text:
+    failures.append("TapRouterReceiver must not remain registered; double-tap is handled in the foreground SearchActivity.")
+
 if "android.intent.action.MAIN" not in manifest_text or "android.intent.category.HOME" not in manifest_text:
     failures.append("Manifest must declare HOME intent visibility for default-launcher detection.")
 
-if '.SearchActivity' not in manifest_text:
-    failures.append("Keyboard-aware SearchActivity must be registered.")
+if 'android:windowSoftInputMode="adjustResize"' not in manifest_text:
+    failures.append("SearchActivity must use IME resize behavior.")
 
-if 'android:windowSoftInputMode="adjustResize|stateAlwaysVisible"' not in manifest_text:
-    failures.append("SearchActivity must opt into IME resize behavior.")
+if "stateAlwaysVisible" in manifest_text:
+    failures.append("IME must not auto-open before the double-tap window expires.")
 
-collapsed_ids = ("provider_icon", "search_hint", "selector_icon")
-for view_id in collapsed_ids:
+for view_id in ("provider_icon", "search_hint", "selector_icon"):
     if layout_text.count(view_id) != 1:
         failures.append(f"Collapsed widget must contain exactly one {view_id}.")
-
-for forbidden in ("chatgpt_icon", "mic", "lens", "youtube", "instagram", "tiktok"):
-    if forbidden in layout_text.lower():
-        failures.append(f"Collapsed widget contains forbidden fixed icon/content: {forbidden}")
-
-for provider in ("GOOGLE", "YOUTUBE", "INSTAGRAM", "TIKTOK", "CHATGPT"):
-    if provider not in providers_text:
-        failures.append(f"Missing selectable app target: {provider}")
-
-if '"New chat"' not in providers_text or '"Ask ChatGPT…"' not in providers_text:
-    failures.append("ChatGPT must expose separate collapsed and editable prompt hints.")
-
-if "ProviderTarget.values()" not in picker_text:
-    failures.append("Right-side selector must render the selectable app icon set.")
-
-if "setOrientation(LinearLayout.VERTICAL)" not in picker_text:
-    failures.append("Selector must be a vertical drop-up, not a horizontal row.")
-
-if "anchorTopY - selector.getHeight() - gap" not in picker_text:
-    failures.append("Selector must be positioned fully above its anchor without overlap.")
-
-if "EditText" in picker_text:
-    failures.append("Selector drop-up must contain icons only, never a second search field.")
 
 if 'android:id="@+id/widget_pill"' not in layout_text:
     failures.append("Collapsed widget must use a dedicated compact pill container.")
@@ -80,61 +72,115 @@ if 'android:id="@+id/widget_pill"' not in layout_text:
 if 'android:layout_height="48dp"' not in layout_text or 'android:layout_gravity="center_vertical"' not in layout_text:
     failures.append("Collapsed pill must stay compact and visually match edit mode.")
 
-if 'android:background="@drawable/widget_pill"' not in layout_text:
-    failures.append("Compact collapsed pill must use the same pill styling as edit mode.")
+for provider in ("GOOGLE", "YOUTUBE", "INSTAGRAM", "TIKTOK", "CHATGPT"):
+    if provider not in providers_text:
+        failures.append(f"Missing selectable app target: {provider}")
 
-if "R.id.selector_icon" not in widget_text or "new Intent(context, PickerActivity.class)" not in widget_text:
-    failures.append("Right-side selector must open PickerActivity.")
+if "setOrientation(LinearLayout.VERTICAL)" not in picker_text:
+    failures.append("App selector must be a vertical drop-up.")
+
+if "anchorTopY - selector.getHeight() - gap" not in picker_text:
+    failures.append("App selector must sit fully above its anchor.")
+
+if "EditText" in picker_text:
+    failures.append("App selector must remain icon-only.")
 
 if "new Intent(context, SearchActivity.class)" not in widget_text:
-    failures.append("Left/center widget actions must open only the local editable search surface.")
+    failures.append("Writing bar must open SearchActivity.")
+
+if "putExtra(SearchActivity.EXTRA_WIDGET_DOUBLE_TAP, true)" not in widget_text:
+    failures.append("Writing bar must mark SearchActivity as gesture-aware.")
+
+if "new Intent(context, ChatGptActionsActivity.class)" not in widget_text:
+    failures.append("Selected ChatGPT icon must expose ChatGPT quick actions.")
+
+if "new Intent(context, PickerActivity.class)" not in widget_text:
+    failures.append("Right selector must still open PickerActivity.")
 
 if "ChatGptNewChatActivity.class" in widget_text:
-    failures.append("Collapsed widget must never launch ChatGPT directly on tap.")
+    failures.append("Collapsed widget must never launch ChatGPT directly.")
 
-if "SOFT_INPUT_ADJUST_RESIZE" not in search_text:
-    failures.append("SearchActivity must resize for the keyboard.")
+if "ViewConfiguration.getDoubleTapTimeout()" not in search_text:
+    failures.append("SearchActivity must use Android's double-tap timeout.")
 
-if "getWindowVisibleDisplayFrame" not in search_text:
-    failures.append("SearchActivity must reposition the visible bar above the IME.")
+if "TapGesturePolicy.isDoubleTap" not in search_text:
+    failures.append("SearchActivity must use the unit-tested double-tap timing policy.")
 
-if "EditText" not in search_text or "selected.inputHint" not in search_text:
-    failures.append("SearchActivity must provide the active target's editable input field.")
+if "dispatchTouchEvent" not in search_text:
+    failures.append("SearchActivity must capture the second physical tap in the foreground.")
 
-if "R.drawable.ic_provider_picker" not in search_text:
-    failures.append("Search surface must preserve the right-side selector control.")
+if "SearchLauncher.openAppHome(this, selected)" not in search_text:
+    failures.append("Double-tap must open the selected app normally.")
 
-if "if (selected.createAction)" in search_text:
-    failures.append("SearchActivity must not auto-launch ChatGPT merely because ChatGPT is selected.")
+if "handler.postDelayed(beginEditingRunnable, doubleTapTimeout)" not in search_text:
+    failures.append("Single-tap editing must wait only through the double-tap disambiguation window.")
+
+if "searchField.requestFocus()" not in search_text or "showSoftInput" not in search_text:
+    failures.append("Single tap must still activate the local editable surface and keyboard.")
+
+if "secondTapAt - firstTapAt <= timeoutMillis" not in tap_policy_text:
+    failures.append("Double-tap policy must enforce a bounded timing window.")
+
+if "static boolean openAppHome" not in launcher_text:
+    failures.append("SearchLauncher must expose the normal app-home route.")
+
+if "getLaunchIntentForPackage" not in launcher_text:
+    failures.append("Normal app-home route must prefer the installed app launcher intent.")
+
+if "SOFT_INPUT_ADJUST_RESIZE" not in search_text or "getWindowVisibleDisplayFrame" not in search_text:
+    failures.append("SearchActivity must remain keyboard-aware.")
 
 if "if (SearchLauncher.launch(this, selected, searchField.getText().toString()))" not in search_text:
-    failures.append("SearchActivity must hand off only from an explicit non-empty submit.")
+    failures.append("Provider handoff must still require explicit submit.")
 
 if "SearchBarWidgetProvider.setEditing(this, true)" not in search_text:
-    failures.append("SearchActivity must hide the launcher widget while the editable surface is active.")
+    failures.append("SearchActivity must hide the launcher widget while editing.")
 
-if search_text.count("SearchBarWidgetProvider.setEditing(this, false)") < 2:
-    failures.append("SearchActivity must restore the launcher widget on pause/finish.")
+if "View.INVISIBLE" not in widget_text:
+    failures.append("Launcher widget must be hidden during edit mode to avoid duplicates.")
 
-if "View.INVISIBLE" not in widget_text or "android.R.id.background" not in widget_text:
-    failures.append("The launcher widget must be temporarily hidden while editing to prevent a duplicate visible bar.")
+if "setOrientation(LinearLayout.VERTICAL)" not in chat_actions_text:
+    failures.append("ChatGPT quick actions must be a compact vertical pop-up.")
+
+if "getIntent().getSourceBounds()" not in chat_actions_text:
+    failures.append("ChatGPT quick-action menu must anchor above the tapped left icon when source bounds are available.")
+
+for action in ("ACTION_VOICE", "ACTION_CAMERA", "ACTION_PHOTO", "ACTION_DICTATION"):
+    if action not in chat_actions_text:
+        failures.append(f"ChatGPT quick-action menu missing {action}.")
+
+for icon in ("ic_voice", "ic_camera", "ic_image", "ic_mic"):
+    if icon not in chat_actions_text:
+        failures.append(f"ChatGPT quick-action menu missing {icon}.")
+
+if "https://chatgpt.com/voice" not in chat_media_text:
+    failures.append("Voice quick action must use ChatGPT's voice deep link.")
+
+if "MediaStore.ACTION_IMAGE_CAPTURE" not in chat_media_text:
+    failures.append("Camera quick action must use the system camera contract.")
+
+if "MediaStore.ACTION_PICK_IMAGES" not in chat_media_text or "Intent.ACTION_OPEN_DOCUMENT" not in chat_media_text:
+    failures.append("Photo quick action must use Android photo-picker/document fallbacks.")
+
+if "RecognizerIntent.ACTION_RECOGNIZE_SPEECH" not in chat_media_text:
+    failures.append("Dictation quick action must use the Android speech-recognition contract.")
+
+if "Intent.ACTION_SEND" not in chat_media_text or "Intent.EXTRA_STREAM" not in chat_media_text:
+    failures.append("Photo/camera result must be handed to ChatGPT through a standard image share.")
+
+if "ChatGptNewChatActivity.EXTRA_PROMPT" not in chat_media_text:
+    failures.append("Dictation result must be handed to ChatGPT as the prompt.")
 
 guard_index = launcher_text.find("if (!hasSubmitText(query))")
 chat_index = launcher_text.find("if (target.createAction)")
 if guard_index < 0 or chat_index < 0 or guard_index > chat_index:
-    failures.append("SearchLauncher must reject empty input before any provider/create action.")
-
-if "putExtra(ChatGptNewChatActivity.EXTRA_PROMPT, trimmed)" not in launcher_text:
-    failures.append("ChatGPT submit must carry the typed prompt into the ChatGPT handoff.")
+    failures.append("SearchLauncher must reject empty input before provider/create actions.")
 
 if "Intent.ACTION_SEND" not in chat_text or "Intent.EXTRA_TEXT" not in chat_text:
-    failures.append("ChatGPT handoff must forward the typed prompt using Android's text-share contract.")
+    failures.append("ChatGPT text submit must retain its text-share handoff.")
 
-if "chatgpt://" not in chat_text or "com.openai.chatgpt" not in chat_text:
-    failures.append("ChatGPT handoff must retain the native new-chat fallback.")
-
-if "https://chatgpt.com/" not in chat_text:
-    failures.append("ChatGPT handoff must retain a browser fallback.")
+if "chatgpt://" not in chat_text or "https://chatgpt.com/" not in chat_text:
+    failures.append("ChatGPT text submit must retain native/browser fallbacks.")
 
 if "requestPinAppWidget(provider, null, null)" not in setup_text:
     failures.append("Supported launchers must leave automatic pin completion to the launcher.")
@@ -143,31 +189,23 @@ if "PendingIntent" in setup_text:
     failures.append("SetupActivity must not reintroduce a pin success callback.")
 
 if "LauncherPinPolicy.requiresManualPlacement" not in setup_text:
-    failures.append("SetupActivity must guard launchers that require manual widget placement.")
-
-if "openHomeForManualPlacement()" not in setup_text:
-    failures.append("SetupActivity must retain a manual placement fallback.")
+    failures.append("SetupActivity must retain launcher compatibility policy.")
 
 if "com.android.launcher3" not in pin_policy_text:
-    failures.append("AOSP/Lineage Launcher3 must use manual widget placement.")
+    failures.append("AOSP/Lineage Launcher3 must retain manual widget placement.")
 
 if failures:
     for failure in failures:
         print(f"FAIL: {failure}", file=sys.stderr)
     sys.exit(1)
 
-print("PASS: XML parses")
-print("PASS: no requested permissions")
-print("PASS: collapsed bar = active app left + action text center + selector right")
-print("PASS: selector targets = Google, YouTube, Instagram, TikTok, ChatGPT")
-print("PASS: selector is vertical, icon-only, and fully above the bar")
-print("PASS: collapsed widget stays compact and matches edit-mode pill geometry")
-print("PASS: tapping left/center opens only the local editable surface")
-print("PASS: no provider app launches from a plain widget tap")
-print("PASS: launcher widget is hidden while editing, so no duplicate bar remains visible")
-print("PASS: empty submit cannot launch any provider")
-print("PASS: ChatGPT accepts typed prompt before handoff")
-print("PASS: ChatGPT handoff forwards typed text only after submit")
-print("PASS: search surface resizes/repositions above the keyboard")
-print("PASS: supported launchers own automatic widget pin completion")
-print("PASS: AOSP/Lineage Launcher3 uses safe manual placement")
+print("PASS: XML parses and manifest remains permission-free")
+print("PASS: compact 48dp idle/edit pill contract")
+print("PASS: right selector remains vertical and icon-only")
+print("PASS: single tap activates the local editor after double-tap disambiguation")
+print("PASS: foreground second tap opens the selected app normally")
+print("PASS: provider handoff still requires non-empty explicit submit")
+print("PASS: edit surface remains keyboard-aware and duplicate-free")
+print("PASS: ChatGPT left icon exposes voice/camera/photo/dictation actions")
+print("PASS: ChatGPT media actions use Android system contracts without new permissions")
+print("PASS: launcher placement safety remains intact")

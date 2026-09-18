@@ -1,6 +1,7 @@
 package com.aeiou.widgetbar;
 
 import android.app.Activity;
+import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.Rect;
 import android.graphics.drawable.GradientDrawable;
@@ -12,39 +13,31 @@ import android.widget.FrameLayout;
 import android.widget.ImageButton;
 import android.widget.LinearLayout;
 
-import java.util.EnumMap;
-import java.util.Map;
-
-public final class PickerActivity extends Activity {
+public final class ChatGptActionsActivity extends Activity {
     private static final int ITEM_SIZE_DP = 48;
     private static final int GAP_DP = 6;
 
-    private final Map<ProviderTarget, ImageButton> providerButtons =
-            new EnumMap<>(ProviderTarget.class);
-
-    private ProviderTarget selected;
-    private LinearLayout selector;
+    private LinearLayout actions;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         overridePendingTransition(0, 0);
         configureWindow();
-        selected = WidgetPrefs.getProvider(this);
 
         FrameLayout root = new FrameLayout(this);
         root.setBackgroundColor(Color.TRANSPARENT);
         root.setOnClickListener(v -> finish());
 
-        selector = buildSelector();
+        actions = buildActions();
         FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.WRAP_CONTENT,
                 FrameLayout.LayoutParams.WRAP_CONTENT);
         lp.gravity = Gravity.TOP | Gravity.START;
-        root.addView(selector, lp);
+        root.addView(actions, lp);
 
         setContentView(root);
-        selector.post(this::positionSelector);
+        actions.post(this::positionActions);
     }
 
     @Override
@@ -60,7 +53,7 @@ public final class PickerActivity extends Activity {
         window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING);
     }
 
-    private LinearLayout buildSelector() {
+    private LinearLayout buildActions() {
         LinearLayout column = new LinearLayout(this);
         column.setOrientation(LinearLayout.VERTICAL);
         column.setGravity(Gravity.CENTER);
@@ -68,91 +61,77 @@ public final class PickerActivity extends Activity {
         column.setBackground(rounded(0xF0222D31, 28, 0x806C858C, 1));
         column.setOnClickListener(v -> { });
 
-        ProviderTarget[] targets = ProviderTarget.values();
-        for (int i = 0; i < targets.length; i++) {
-            ProviderTarget target = targets[i];
+        addAction(column, R.drawable.ic_voice, R.string.chatgpt_voice,
+                ChatGptMediaActivity.ACTION_VOICE, 0);
+        addAction(column, R.drawable.ic_camera, R.string.chatgpt_camera,
+                ChatGptMediaActivity.ACTION_CAMERA, 1);
+        addAction(column, R.drawable.ic_image, R.string.chatgpt_photo,
+                ChatGptMediaActivity.ACTION_PHOTO, 2);
+        addAction(column, R.drawable.ic_mic, R.string.chatgpt_dictation,
+                ChatGptMediaActivity.ACTION_DICTATION, 3);
 
-            ImageButton button = new ImageButton(this);
-            button.setContentDescription(target.label);
-            button.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
-            button.setPadding(dp(8), dp(8), dp(8), dp(8));
-            button.setImageBitmap(IconLoader.load(
-                    this,
-                    target.packageName,
-                    dp(44),
-                    target.label.substring(0, 1)));
-            button.setOnClickListener(v -> select(target));
-            providerButtons.put(target, button);
-
-            LinearLayout.LayoutParams itemLp =
-                    new LinearLayout.LayoutParams(dp(ITEM_SIZE_DP), dp(ITEM_SIZE_DP));
-            if (i > 0) {
-                itemLp.topMargin = dp(GAP_DP);
-            }
-            column.addView(button, itemLp);
-        }
-
-        refreshSelection();
         return column;
     }
 
-    private void select(ProviderTarget target) {
-        selected = target;
-        WidgetPrefs.setProvider(this, target);
-        SearchBarWidgetProvider.updateAll(this);
-        finish();
-    }
+    private void addAction(
+            LinearLayout parent,
+            int iconRes,
+            int descriptionRes,
+            String action,
+            int index) {
+        ImageButton button = new ImageButton(this);
+        button.setImageResource(iconRes);
+        button.setContentDescription(getString(descriptionRes));
+        button.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
+        button.setPadding(dp(9), dp(9), dp(9), dp(9));
+        button.setBackground(rounded(0xB01D292D, 24, 0x806A8990, 1));
+        button.setOnClickListener(v -> {
+            startActivity(new Intent(this, ChatGptMediaActivity.class)
+                    .putExtra(ChatGptMediaActivity.EXTRA_ACTION, action));
+            finish();
+        });
 
-    private void refreshSelection() {
-        for (Map.Entry<ProviderTarget, ImageButton> entry : providerButtons.entrySet()) {
-            boolean active = entry.getKey() == selected;
-            entry.getValue().setBackground(rounded(
-                    active ? 0xCC314348 : Color.TRANSPARENT,
-                    24,
-                    active ? 0xFF61E3EA : 0x006C858C,
-                    active ? 2 : 0));
+        LinearLayout.LayoutParams lp =
+                new LinearLayout.LayoutParams(dp(ITEM_SIZE_DP), dp(ITEM_SIZE_DP));
+        if (index > 0) {
+            lp.topMargin = dp(GAP_DP);
         }
+        parent.addView(button, lp);
     }
 
-    private void positionSelector() {
+    private void positionActions() {
         FrameLayout.LayoutParams lp =
-                (FrameLayout.LayoutParams) selector.getLayoutParams();
+                (FrameLayout.LayoutParams) actions.getLayoutParams();
 
-        Rect source = getIntent().getSourceBounds();
         int width = getResources().getDisplayMetrics().widthPixels;
         int height = getResources().getDisplayMetrics().heightPixels;
         int edgeMargin = dp(10);
         int gap = dp(8);
 
+        Rect source = getIntent().getSourceBounds();
         int anchorCenterX;
         int anchorTopY;
-
         if (source != null && !source.isEmpty()) {
             anchorCenterX = source.centerX();
             anchorTopY = source.top;
         } else {
-            /*
-             * Launcher3 does not reliably propagate sourceBounds for RemoteViews
-             * PendingIntents. Keep the selector on the right edge and above the
-             * normal widget position instead of letting it overlap the widget.
-             */
-            anchorCenterX = width - dp(46);
+            anchorCenterX = dp(46);
             anchorTopY = height - dp(240);
         }
 
-        int desiredLeft = anchorCenterX - selector.getWidth() / 2;
-        int desiredTop = anchorTopY - selector.getHeight() - gap;
+        int desiredLeft = anchorCenterX - actions.getWidth() / 2;
+        int desiredTop = anchorTopY - actions.getHeight() - gap;
 
         lp.leftMargin = clamp(
                 desiredLeft,
                 edgeMargin,
-                width - selector.getWidth() - edgeMargin);
+                width - actions.getWidth() - edgeMargin);
         lp.topMargin = clamp(
                 desiredTop,
                 edgeMargin,
-                height - selector.getHeight() - edgeMargin);
+                height - actions.getHeight() - edgeMargin);
 
-        selector.setLayoutParams(lp);
+        actions.setLayoutParams(lp);
     }
 
     private int clamp(int value, int min, int max) {

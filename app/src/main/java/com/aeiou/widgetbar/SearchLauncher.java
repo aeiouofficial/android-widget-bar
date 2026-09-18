@@ -52,4 +52,38 @@ final class SearchLauncher {
         context.startActivity(fallback);
         return true;
     }
+
+    static boolean openAppHome(Context context, ProviderTarget target) {
+        Intent launch = context.getPackageManager().getLaunchIntentForPackage(target.packageName);
+        if (launch != null) {
+            launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            context.startActivity(launch);
+            return true;
+        }
+
+        String url;
+        switch (target) {
+            case YOUTUBE:
+                url = "https://www.youtube.com/";
+                break;
+            case INSTAGRAM:
+                url = "https://www.instagram.com/";
+                break;
+            case TIKTOK:
+                url = "https://www.tiktok.com/";
+                break;
+            case CHATGPT:
+                url = "https://chatgpt.com/";
+                break;
+            case GOOGLE:
+            default:
+                url = "https://www.google.com/";
+                break;
+        }
+
+        Intent fallback = new Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        context.startActivity(fallback);
+        return true;
+    }
 }

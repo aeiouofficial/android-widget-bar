@@ -4,67 +4,78 @@ Standalone Android home-screen search/create widget.
 
 ## Visual contract
 
-The widget always looks like one compact typing/search pill:
+The widget always looks like one compact 48dp pill:
 
 ```text
 [ ACTIVE APP ] [ SEARCH / CREATE FIELD ] [ APP SELECTOR ]
 ```
 
-There is no separate large idle-state container. The persistent launcher widget and the active editable surface use the same compact 48dp pill geometry, spacing, background, border, left active-app icon, center field, and right selector control.
+- left: exactly one active app icon
+- center: current search/create field
+- right: exactly one app-selector icon
+- idle and edit mode use the same compact visual geometry
+- selector opens vertically upward without overlapping the main bar
 
 ## Interaction contract
 
-- **Left:** exactly one active app icon.
-- **Center:** the current search/create action.
-- **Right:** exactly one neutral app-selector icon.
-- Selector targets: Google / YouTube / Instagram / TikTok / ChatGPT.
-- Selecting a target moves that app to the left and persists it.
-- The right side always remains the selector.
+### Center writing bar
 
-### Selector behavior
+- **Single tap:** activates Widget Bar's own editable field and keyboard.
+- **Double-tap:** opens the currently selected app normally, without running a search.
+- **Submit:** only a non-empty query/prompt followed by the keyboard search/send action opens the selected provider with that content.
+- Empty/whitespace submit does nothing.
 
-Tapping the selector opens an **icon-only vertical drop-up**.
+Double-tap detection is handled inside the foreground `SearchActivity`: the first tap immediately swaps the launcher widget for the visually identical edit surface, a short Android-standard double-tap window stays active, and the keyboard is shown only after that window expires. A second tap inside the original writing-bar bounds opens the selected app normally instead of starting text entry.
 
-```text
-            [ Google    ]
-            [ YouTube   ]
-            [ Instagram ]
-            [ TikTok    ]
-            [ ChatGPT   ]
-[ ACTIVE ][ FIELD      ][ SELECTOR ]
-```
+### Right selector
 
-The selector must be entirely above the bar with a visible gap. It must never expand horizontally to the left and must never overlap the main bar.
+Tap the right selector to choose:
 
-### Input behavior
+- Google
+- YouTube
+- Instagram
+- TikTok
+- ChatGPT
 
-Tapping the left icon or center field never opens the provider directly.
+The selected app moves to the left and persists.
 
-A tap only activates Widget Bar's own editable field. The provider opens only after:
-1. non-empty text has been entered; and
-2. the user presses the keyboard search/send action.
+### ChatGPT left-icon quick actions
 
-Blank/whitespace submit does nothing.
+When ChatGPT is selected, tapping the **left ChatGPT icon** opens a compact adapted quick-action menu:
 
-### Keyboard behavior
+- voice conversation
+- camera capture
+- image upload/photo picker
+- dictation/recording
 
-The editable surface:
-- visually matches the persistent compact pill;
-- keeps the selected app icon on the left;
-- keeps the selector on the right;
-- uses `SOFT_INPUT_ADJUST_RESIZE`;
-- tracks the visible display frame;
-- moves above the keyboard when needed so typed text is always visible.
+These are implemented with supported Android contracts rather than copied internal ChatGPT widget code:
 
-The launcher-owned widget is temporarily hidden while this active surface is shown, preventing a duplicate visible bar.
+- voice: ChatGPT's verified `https://chatgpt.com/voice` app deep link
+- camera: Android camera capture to an app-created MediaStore image, then targeted image share to ChatGPT
+- photo: Android system photo picker/document fallback, then targeted image share to ChatGPT
+- dictation: Android speech recognizer, then the recognized text is handed to the existing ChatGPT new-chat prompt flow
+
+No additional runtime/system permissions are requested by Widget Bar.
+
+## Keyboard behavior
+
+The persistent launcher AppWidget uses RemoteViews, so free-form typing is handled by a transient permission-free `SearchActivity`.
+
+It:
+
+- visually matches the same compact pill
+- keeps the selected app icon left and selector right
+- uses IME resize and visible-frame tracking
+- moves above the keyboard so typed text stays visible
+- temporarily hides the launcher-owned widget to prevent a duplicate visible bar
 
 ## Provider behavior
 
-- Google → query submit opens Google search.
-- YouTube → query submit opens YouTube search.
-- Instagram → query submit opens Instagram keyword search.
-- TikTok → query submit opens TikTok search.
-- ChatGPT → collapsed label **New chat**; editable hint **Ask ChatGPT…**; only a submitted non-empty prompt opens ChatGPT and forwards the typed text.
+- Google → search after explicit submit
+- YouTube → search after explicit submit
+- Instagram → keyword search after explicit submit
+- TikTok → search after explicit submit
+- ChatGPT → typed prompt handed to ChatGPT after explicit submit
 
 ## Safety
 
