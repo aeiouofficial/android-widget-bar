@@ -16,6 +16,12 @@ import java.util.EnumMap;
 import java.util.Map;
 
 public final class ModePickerActivity extends Activity {
+    static final String EXTRA_PROVIDER_ID = "provider_id";
+    static final String EXTRA_ANCHOR_SIDE = "anchor_side";
+    static final String EXTRA_FROM_WHEEL = "from_wheel";
+    static final String ANCHOR_LEFT = "left";
+    static final String ANCHOR_RIGHT = "right";
+
     private static final int ITEM_SIZE_DP = 48;
     private static final int GAP_DP = 6;
 
@@ -25,6 +31,7 @@ public final class ModePickerActivity extends Activity {
     private ProviderTarget provider;
     private ProviderMode selected;
     private LinearLayout modes;
+    private String anchorSide;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -32,7 +39,20 @@ public final class ModePickerActivity extends Activity {
         overridePendingTransition(0, 0);
         configureWindow();
 
-        provider = WidgetPrefs.getProvider(this);
+        String requestedProvider = getIntent().getStringExtra(EXTRA_PROVIDER_ID);
+        provider = requestedProvider == null
+                ? WidgetPrefs.getProvider(this)
+                : ProviderTarget.fromId(requestedProvider);
+        anchorSide = getIntent().getStringExtra(EXTRA_ANCHOR_SIDE);
+        if (anchorSide == null) {
+            anchorSide = ANCHOR_LEFT;
+        }
+
+        if (requestedProvider != null) {
+            WidgetPrefs.setProvider(this, provider);
+            WidgetUpdates.updateAll(this);
+        }
+
         selected = WidgetPrefs.getMode(this, provider);
 
         FrameLayout root = new FrameLayout(this);
@@ -95,8 +115,9 @@ public final class ModePickerActivity extends Activity {
 
     private void select(ProviderMode mode) {
         selected = mode;
+        WidgetPrefs.setProvider(this, provider);
         WidgetPrefs.setMode(this, mode);
-        SearchBarWidgetProvider.updateAll(this);
+        WidgetUpdates.updateAll(this);
 
         if (!mode.acceptsText) {
             SearchLauncher.launchAction(this, mode);
@@ -125,15 +146,25 @@ public final class ModePickerActivity extends Activity {
         int height = getResources().getDisplayMetrics().heightPixels;
         int edgeMargin = dp(10);
         int gap = dp(8);
+        boolean fromWheel = getIntent().getBooleanExtra(EXTRA_FROM_WHEEL, false);
 
         int anchorCenterX;
         int anchorTopY;
 
-        if (source != null && !source.isEmpty()) {
+        if (fromWheel) {
+            // Collection-widget source bounds are launcher-dependent. The wheel
+            // is always on the right, so keep its mode menu right-anchored.
+            anchorCenterX = width - dp(46);
+            anchorTopY = source != null && !source.isEmpty()
+                    ? source.top
+                    : height - dp(240);
+        } else if (source != null && !source.isEmpty()) {
             anchorCenterX = source.centerX();
             anchorTopY = source.top;
         } else {
-            anchorCenterX = dp(46);
+            anchorCenterX = ANCHOR_RIGHT.equals(anchorSide)
+                    ? width - dp(46)
+                    : dp(46);
             anchorTopY = height - dp(240);
         }
 

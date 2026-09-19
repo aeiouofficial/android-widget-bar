@@ -1,18 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Widget Bar</string>
-    <string name="setup_body">Choose Google, YouTube, Instagram, TikTok, or ChatGPT from the right selector. Tap the active app icon on the left to choose that app’s mode. Tap the center once to edit or run the selected mode; double-tap the center to open the selected app normally.
-
-No root, overlay, accessibility, or system modification.</string>
-    <string name="setup_body_manual">Choose Google, YouTube, Instagram, TikTok, or ChatGPT from the right selector. Tap the active app icon on the left to choose that app’s mode. Tap the center once to edit or run the selected mode; double-tap the center to open the selected app normally.
-
-This launcher uses manual widget placement. Tap below, then long-press an empty home-screen area → Widgets → search “Widget Bar” → drag it into place.</string>
-    <string name="add_widget">Add widget</string>
+    <string name="widget_classic_name">Widget Bar - Classic</string>
+    <string name="widget_wheel_name">Widget Bar - Wheel</string>
+    <string name="setup_body">Choose either Classic or Wheel. Classic uses the original right-side app picker. Wheel uses an infinite vertical slot reel on the right: swipe up or down forever through the app icons, then tap the visible app to select it and open the mode choices for that app on the right. Tap the active app icon on the left to open modes directly. Single-tap the center to edit or run the selected mode; double-tap the center to open the selected app normally.&#10;&#10;No root, overlay, accessibility, or system modification.</string>
+    <string name="setup_body_manual">Choose either Widget Bar - Classic or Widget Bar - Wheel in the launcher widget picker. Wheel uses an infinite vertical right-side app reel: swipe up or down to cycle through the app icons with no terminal end, then tap the visible app to select it and open the related mode choices.&#10;&#10;This launcher uses manual widget placement. Tap below, then long-press an empty home-screen area, choose Widgets, search for Widget Bar, and drag the version you want into place.</string>
+    <string name="add_classic_widget">Add Classic widget</string>
+    <string name="add_wheel_widget">Add Wheel widget</string>
     <string name="open_home_screen">Open home screen</string>
-    <string name="manual_placement_steps">Long-press an empty home-screen area → Widgets → search “Widget Bar” → drag it onto the home screen.</string>
-    <string name="widget_description">Switchable search/create bar with per-app modes</string>
+    <string name="manual_placement_steps">Long-press an empty home-screen area, choose Widgets, search for Widget Bar, and drag Classic or Wheel onto the home screen.</string>
+    <string name="widget_description">Classic switchable search/create bar with per-app modes</string>
+    <string name="widget_wheel_description">Wheel variant: infinite vertical app slot on the right; tap the visible app for modes</string>
     <string name="provider_button">Choose app</string>
+    <string name="wheel_provider_button">Swipe apps vertically without an end; tap the visible app for modes</string>
     <string name="mode_button">Choose mode</string>
-    <string name="search_web">Search the web…</string>
+    <string name="search_web">Search the web&#8230;</string>
     <string name="chatgpt_dictation">Start dictation</string>
 </resources>

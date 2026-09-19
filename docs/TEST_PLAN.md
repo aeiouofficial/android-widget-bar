@@ -5,34 +5,45 @@
 1. XML parse.
 2. Zero requested permissions.
 3. Persistent pill remains compact 48dp.
-4. Right provider selector remains vertical, icon-only, and non-overlapping.
-5. Left mode picker remains vertical, provider-scoped, and non-overlapping.
-6. Mode selection is persisted independently per provider.
-7. Center retains Android-standard double-tap disambiguation.
-8. Double-tap opens the selected app normally.
-9. Text modes require non-empty explicit submit.
-10. Non-text action modes launch immediately from the left mode picker; no additional center-bar tap is allowed.
-11. Google Gemini uses `PROCESS_TEXT` with the typed prompt.
-12. YouTube Shorts/subscriptions use installed-app shortcut actions.
-13. Instagram Story/Reel/Messages routes remain present.
-14. TikTok Create/Inbox routes remain present.
-15. ChatGPT Voice/Camera/Photo/Dictation remain available through `ChatGptMediaActivity`.
-16. Debug build.
-17. JVM tests.
-18. Lint.
-19. APK audit.
-20. `git diff --check`.
+4. Classic right provider selector remains vertical, icon-only, and non-overlapping.
+5. Wheel variant uses an infinite vertical `ListView` slot reel and contains no `StackView`, rotation/card stack, or discrete cycle policy.
+6. Left mode picker remains vertical, provider-scoped, and non-overlapping.
+7. Mode selection is persisted independently per provider.
+8. Center retains Android-standard double-tap disambiguation.
+9. Double-tap opens the selected app normally.
+10. Text modes require non-empty explicit submit.
+11. Non-text action modes launch immediately from the left mode picker; no additional center-bar tap is allowed.
+12. Google Gemini uses `PROCESS_TEXT` with the typed prompt.
+13. YouTube Shorts/subscriptions use installed-app shortcut actions.
+14. Instagram Story/Reel/Messages routes remain present.
+15. TikTok Create/Inbox routes remain present.
+16. ChatGPT Voice/Camera/Photo/Dictation remain available through `ChatGptMediaActivity`.
+17. Debug build.
+18. JVM tests.
+19. Lint.
+20. APK audit.
+21. `git diff --check`.
 
 ## Device validation
 
-### Provider selector
+### Provider selectors
 
-For Google / YouTube / Instagram / TikTok / ChatGPT:
+**Classic** — for Google / YouTube / Instagram / TikTok / ChatGPT:
 
 1. open the right selector
 2. choose provider
 3. verify selected app icon moves left
 4. verify that provider's persisted mode center label appears
+
+**Wheel**:
+
+1. add the separate `Widget Bar - Wheel` widget
+2. swipe vertically inside only the right-side 44dp provider reel
+3. swipe past at least two full five-provider cycles upward and downward; verify icons repeat with no terminal end or overscroll edge
+4. tap the visible provider icon
+5. verify that provider becomes active and its mode menu opens on the right in the same interaction
+6. verify the center label updates after the provider is committed
+7. repeat inside the editable `SearchActivity` Wheel variant
 
 ### Left mode picker
 
@@ -73,11 +84,10 @@ Gemini-specific:
 
 For each action mode:
 
-1. select mode from the left picker
-2. verify center label changes
-3. single tap center
-4. wait past double-tap timeout
-5. verify expected app surface opens
+1. open the provider's mode picker
+2. tap the action-mode icon
+3. verify the expected app surface opens immediately
+4. verify no additional center-bar tap is required
 
 Required:
 

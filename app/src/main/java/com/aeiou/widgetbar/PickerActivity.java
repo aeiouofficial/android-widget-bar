@@ -99,7 +99,7 @@ public final class PickerActivity extends Activity {
     private void select(ProviderTarget target) {
         selected = target;
         WidgetPrefs.setProvider(this, target);
-        SearchBarWidgetProvider.updateAll(this);
+        WidgetUpdates.updateAll(this);
         finish();
     }
 

@@ -2,6 +2,7 @@ package com.aeiou.widgetbar;
 
 import android.app.Activity;
 import android.appwidget.AppWidgetManager;
+import android.appwidget.AppWidgetProvider;
 import android.content.ComponentName;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -45,20 +46,35 @@ public final class SetupActivity extends Activity {
         body.setGravity(Gravity.CENTER);
         root.addView(body);
 
-        Button add = new Button(this);
-        add.setText(manualPlacement ? R.string.open_home_screen : R.string.add_widget);
-        add.setOnClickListener(v -> {
-            if (manualPlacement) {
-                openHomeForManualPlacement();
-            } else {
-                requestWidgetPin();
-            }
-        });
-        LinearLayout.LayoutParams buttonLp = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, dp(54));
-        buttonLp.setMargins(0, dp(28), 0, 0);
-        root.addView(add, buttonLp);
+        if (manualPlacement) {
+            Button openHome = buildButton(R.string.open_home_screen);
+            openHome.setOnClickListener(v -> openHomeForManualPlacement());
+            root.addView(openHome, buttonParams(true));
+            return root;
+        }
+
+        Button classic = buildButton(R.string.add_classic_widget);
+        classic.setOnClickListener(v -> requestWidgetPin(SearchBarWidgetProvider.class));
+        root.addView(classic, buttonParams(true));
+
+        Button wheel = buildButton(R.string.add_wheel_widget);
+        wheel.setOnClickListener(v -> requestWidgetPin(WheelSearchBarWidgetProvider.class));
+        root.addView(wheel, buttonParams(false));
         return root;
+    }
+
+    private Button buildButton(int labelRes) {
+        Button button = new Button(this);
+        button.setText(labelRes);
+        return button;
+    }
+
+    private LinearLayout.LayoutParams buttonParams(boolean first) {
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                dp(54));
+        lp.setMargins(0, dp(first ? 28 : 12), 0, 0);
+        return lp;
     }
 
     private boolean requiresManualPlacement() {
@@ -72,9 +88,9 @@ public final class SetupActivity extends Activity {
         return LauncherPinPolicy.requiresManualPlacement(launcherPackage);
     }
 
-    private void requestWidgetPin() {
+    private void requestWidgetPin(Class<? extends AppWidgetProvider> providerClass) {
         AppWidgetManager manager = AppWidgetManager.getInstance(this);
-        ComponentName provider = new ComponentName(this, SearchBarWidgetProvider.class);
+        ComponentName provider = new ComponentName(this, providerClass);
         if (!manager.isRequestPinAppWidgetSupported()
                 || !manager.requestPinAppWidget(provider, null, null)) {
             openHomeForManualPlacement();

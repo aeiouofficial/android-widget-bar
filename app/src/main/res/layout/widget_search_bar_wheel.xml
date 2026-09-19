@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@android:id/background"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <LinearLayout
+        android:id="@+id/widget_pill"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:layout_gravity="center_vertical"
+        android:background="@drawable/widget_pill"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="8dp"
+        android:paddingEnd="6dp"
+        tools:ignore="UselessParent">
+
+        <ImageView
+            android:id="@+id/provider_icon"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:contentDescription="@string/mode_button"
+            android:padding="6dp"
+            android:scaleType="fitCenter" />
+
+        <TextView
+            android:id="@+id/search_hint"
+            android:layout_width="0dp"
+            android:layout_height="40dp"
+            android:layout_weight="1"
+            android:gravity="center_vertical"
+            android:maxLines="1"
+            android:paddingStart="8dp"
+            android:paddingEnd="4dp"
+            android:text="@string/search_web"
+            android:textColor="#B9C9CC"
+            android:textSize="18sp" />
+
+        <ListView
+            android:id="@+id/provider_wheel"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:cacheColorHint="@android:color/transparent"
+            android:contentDescription="@string/wheel_provider_button"
+            android:divider="@null"
+            android:dividerHeight="0dp"
+            android:overScrollMode="never"
+            android:scrollbars="none" />
+    </LinearLayout>
+</FrameLayout>

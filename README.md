@@ -14,19 +14,25 @@ The widget is always one compact 48dp pill:
 - center: current mode label or editable field
 - right: app selector
 - idle and edit mode share the same pill geometry
-- both left mode menu and right app selector open vertically upward without overlapping the main bar
+- **Classic** keeps the original tap-to-open provider picker
+- **Wheel** replaces the old rotating/stack selector with an infinite vertical app slot reel inside the right-side slot
+- left mode menus remain vertical and non-overlapping
 
 ## Controls
 
-### Right icon: choose app
+### Right side: choose app
 
-Available apps:
+Both variants expose the same providers:
 
 - Google
 - YouTube
 - Instagram
 - TikTok
 - ChatGPT
+
+**Classic**: tap the right selector and choose from the existing vertical provider menu.
+
+**Wheel**: the right side is an infinite vertical `ListView` slot reel, not a `StackView` and not a rotating card animation. Swipe vertically in either direction with no terminal end; the five providers repeat as a slot reel. Tap the visible provider icon to commit that provider and immediately open its provider-specific mode menu on the right.
 
 The selected app becomes the left icon and its last selected mode is restored. Each app starts with its primary search/new-chat mode by default.
 
@@ -111,6 +117,6 @@ The center uses a gesture-aware `SearchActivity`.
 
 No root, ROM changes, launcher replacement, accessibility service, draw-over-other-apps permission, dangerous permissions, or launcher database mutation.
 
-The stable snapshot before this mode expansion is preserved as GitHub prerelease **v0.1.0-working**.
+The stable snapshot before this mode expansion is preserved as GitHub prerelease **v0.1.0-working**. The Classic v0.2 interaction remains available separately while the Wheel variant is developed as a second widget provider.
 
 See `docs/ARCHITECTURE.md`, `docs/MODE_ROUTES.md`, and `docs/TEST_PLAN.md`.

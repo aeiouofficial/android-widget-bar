@@ -4,7 +4,7 @@
 
 The verified pre-mode-expansion snapshot is preserved at tag/release `v0.1.0-working`.
 
-Mode expansion work continues on `feat/app-mode-actions-v0.2`.
+Mode expansion is preserved on `feat/app-mode-actions-v0.2`. The second selector experiment lives independently on `feat/wheel-widget-v0.3`, so Classic and Wheel remain separately available.
 
 ## Persistent widget
 
@@ -34,7 +34,7 @@ Click wiring:
 `ProviderMode` models provider-scoped modes and classifies each as either:
 
 - **text mode** — requires Widget Bar text entry and explicit submit
-- **action mode** — runs after the single-tap/double-tap timing window
+- **action mode** — launches immediately when selected from the provider-specific mode menu
 
 `WidgetPrefs` persists:
 
@@ -49,11 +49,21 @@ Defaults:
 - TikTok Search
 - ChatGPT New chat
 
-## App selector
+## App selector variants
 
-`PickerActivity` is the existing icon-only vertical drop-up on the right.
+### Classic
 
-Selecting an app updates the active provider. Its previously selected mode is restored automatically; if no mode was stored, its default is used.
+`PickerActivity` is the existing icon-only vertical drop-up on the right. Selecting an app updates the active provider. Its previously selected mode is restored automatically; if no mode was stored, its default is used.
+
+### Wheel
+
+The second widget provider uses the same 48dp pill but replaces the right-side `StackView`/rotation idea with an infinite vertical `ListView` slot reel backed by `RemoteViewsService`.
+
+- vertical finger scrolling browses provider icons without card rotation or terminal ends
+- the viewport stays inside the 44dp right-side slot
+- tapping the currently visible provider item both commits that provider and opens `ModePickerActivity` on the right
+- both launcher RemoteViews and edit-mode `SearchActivity` use a center-anchored virtual rail with modulo provider mapping, so swiping can continue in either direction without exposing an end
+- Classic remains untouched and separately selectable in the launcher widget picker
 
 ## Mode selector
 
