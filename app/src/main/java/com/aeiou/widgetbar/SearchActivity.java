@@ -13,19 +13,24 @@ import android.os.SystemClock;
 import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
+import android.view.View;
 import android.view.ViewConfiguration;
+import android.view.ViewGroup;
 import android.view.Window;
 import android.view.WindowManager;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputMethodManager;
+import android.widget.BaseAdapter;
 import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.ListView;
 
 public final class SearchActivity extends Activity {
     static final String EXTRA_WIDGET_DOUBLE_TAP = "widget_double_tap";
+    static final String EXTRA_WIDGET_VARIANT = "widget_variant";
 
     private static final int BAR_HEIGHT_DP = 48;
     private static final int EDGE_MARGIN_DP = 15;
@@ -33,10 +38,14 @@ public final class SearchActivity extends Activity {
     private final Handler handler = new Handler(Looper.getMainLooper());
 
     private ProviderTarget selected;
+    private ProviderMode selectedMode;
+    private String widgetVariant;
     private FrameLayout root;
     private LinearLayout searchBar;
     private EditText searchField;
-    private ImageButton selectorButton;
+    private ImageView activeIcon;
+    private ImageButton classicSelectorButton;
+    private ListView wheelList;
     private Rect sourceBounds;
 
     private boolean gestureAware;
@@ -52,19 +61,24 @@ public final class SearchActivity extends Activity {
         overridePendingTransition(0, 0);
 
         selected = WidgetPrefs.getProvider(this);
+        selectedMode = WidgetPrefs.getMode(this, selected);
         sourceBounds = getIntent().getSourceBounds();
         gestureAware = getIntent().getBooleanExtra(EXTRA_WIDGET_DOUBLE_TAP, false);
+        widgetVariant = getIntent().getStringExtra(EXTRA_WIDGET_VARIANT);
+        if (widgetVariant == null) {
+            widgetVariant = WidgetUpdates.VARIANT_CLASSIC;
+        }
         configureWindow();
 
         root = new FrameLayout(this);
         root.setBackgroundColor(Color.TRANSPARENT);
         root.setOnClickListener(v -> {
-            if (editingActive) {
-                finish();
-            }
+            if (editingActive) finish();
         });
 
         searchBar = buildSearchBar();
+        searchBar.setVisibility(gestureAware ? View.INVISIBLE : View.VISIBLE);
+
         FrameLayout.LayoutParams barLp = new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 dp(BAR_HEIGHT_DP));
@@ -82,8 +96,7 @@ public final class SearchActivity extends Activity {
         if (gestureAware) {
             armDoubleTapWindow();
         } else {
-            activateEditing();
-            beginEditingSoon(120);
+            performSingleTapAction();
         }
     }
 
@@ -92,11 +105,14 @@ public final class SearchActivity extends Activity {
         super.onNewIntent(intent);
         setIntent(intent);
 
+        String incomingVariant = intent.getStringExtra(EXTRA_WIDGET_VARIANT);
+        if (incomingVariant != null) {
+            widgetVariant = incomingVariant;
+        }
+
         boolean incomingGestureAware =
                 intent.getBooleanExtra(EXTRA_WIDGET_DOUBLE_TAP, false);
-        if (!incomingGestureAware) {
-            return;
-        }
+        if (!incomingGestureAware) return;
 
         long now = SystemClock.elapsedRealtime();
         if (waitingForSecondTap
@@ -117,11 +133,6 @@ public final class SearchActivity extends Activity {
     public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
         if (hasFocus && waitingForSecondTap) {
-            /*
-             * Very early second taps reach the launcher while this window is
-             * not touchable. Once our window has focus, make it touchable and
-             * catch the rest of the standard double-tap interval here.
-             */
             clearTapPassthrough();
         }
     }
@@ -144,7 +155,7 @@ public final class SearchActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
-        if (!gestureAware && !editingActive) {
+        if (!gestureAware && !editingActive && selectedMode.acceptsText) {
             activateEditing();
         }
     }
@@ -154,7 +165,7 @@ public final class SearchActivity extends Activity {
         cancelBeginEditing();
         clearTapPassthrough();
         if (editingActive) {
-            SearchBarWidgetProvider.setEditing(this, false);
+            WidgetUpdates.setEditing(this, widgetVariant, false);
             editingActive = false;
         }
         super.onPause();
@@ -165,7 +176,7 @@ public final class SearchActivity extends Activity {
         cancelBeginEditing();
         clearTapPassthrough();
         if (editingActive) {
-            SearchBarWidgetProvider.setEditing(this, false);
+            WidgetUpdates.setEditing(this, widgetVariant, false);
             editingActive = false;
         }
         super.finish();
@@ -179,34 +190,38 @@ public final class SearchActivity extends Activity {
         firstTapAt = SystemClock.elapsedRealtime();
         doubleTapTimeout = ViewConfiguration.getDoubleTapTimeout();
         waitingForSecondTap = true;
+        searchBar.setVisibility(View.INVISIBLE);
 
-        /*
-         * During the double-tap window this Activity stays transparent and
-         * non-touchable. The second physical tap therefore reaches the same
-         * launcher RemoteViews PendingIntent and arrives here via onNewIntent.
-         * This avoids races where a just-created Activity steals the second tap.
-         */
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE);
-        SearchBarWidgetProvider.setEditing(this, false);
+        WidgetUpdates.setEditing(this, widgetVariant, false);
 
         beginEditingRunnable = () -> {
-            if (!waitingForSecondTap) {
-                return;
-            }
+            if (!waitingForSecondTap) return;
             waitingForSecondTap = false;
             clearTapPassthrough();
-            activateEditing();
-            beginEditing();
+            performSingleTapAction();
         };
         handler.postDelayed(beginEditingRunnable, doubleTapTimeout);
     }
 
-    private void activateEditing() {
-        if (editingActive) {
+    private void performSingleTapAction() {
+        beginEditingRunnable = null;
+
+        if (!selectedMode.acceptsText) {
+            SearchLauncher.launchAction(this, selectedMode);
+            finish();
             return;
         }
+
+        activateEditing();
+        beginEditingSoon(80);
+    }
+
+    private void activateEditing() {
+        if (editingActive) return;
         editingActive = true;
-        SearchBarWidgetProvider.setEditing(this, true);
+        searchBar.setVisibility(View.VISIBLE);
+        WidgetUpdates.setEditing(this, widgetVariant, true);
     }
 
     private void clearTapPassthrough() {
@@ -224,6 +239,8 @@ public final class SearchActivity extends Activity {
 
     private void beginEditing() {
         beginEditingRunnable = null;
+        if (!selectedMode.acceptsText) return;
+
         searchField.requestFocus();
         searchField.post(() -> {
             InputMethodManager imm =
@@ -256,15 +273,11 @@ public final class SearchActivity extends Activity {
         row.setBackground(rounded(0xC2222D31, 34, 0x4D6C858C, 1));
         row.setOnClickListener(v -> { });
 
-        ImageView activeIcon = new ImageView(this);
-        activeIcon.setContentDescription(selected.label);
+        activeIcon = new ImageView(this);
+        activeIcon.setContentDescription(selected.label + " modes");
         activeIcon.setScaleType(ImageView.ScaleType.FIT_CENTER);
         activeIcon.setPadding(dp(6), dp(6), dp(6), dp(6));
-        activeIcon.setImageBitmap(IconLoader.load(
-                this,
-                selected.packageName,
-                dp(40),
-                selected.label.substring(0, 1)));
+        activeIcon.setOnClickListener(v -> openModePickerLeft());
         row.addView(activeIcon, new LinearLayout.LayoutParams(dp(40), dp(40)));
 
         searchField = new EditText(this);
@@ -272,12 +285,10 @@ public final class SearchActivity extends Activity {
         searchField.setTextColor(Color.WHITE);
         searchField.setHintTextColor(0xFFB9C9CC);
         searchField.setTextSize(18f);
-        searchField.setHint(selected.inputHint);
         searchField.setImeOptions(EditorInfo.IME_ACTION_SEARCH);
         searchField.setInputType(android.text.InputType.TYPE_CLASS_TEXT);
         searchField.setPadding(dp(8), 0, dp(8), 0);
         searchField.setBackgroundColor(Color.TRANSPARENT);
-        searchField.setOnClickListener(v -> { });
         searchField.setOnEditorActionListener((v, actionId, event) -> {
             boolean enter = event != null
                     && event.getKeyCode() == KeyEvent.KEYCODE_ENTER
@@ -295,50 +306,166 @@ public final class SearchActivity extends Activity {
                         LinearLayout.LayoutParams.MATCH_PARENT,
                         1f));
 
-        selectorButton = new ImageButton(this);
-        selectorButton.setContentDescription(getString(R.string.provider_button));
-        selectorButton.setScaleType(ImageView.ScaleType.FIT_CENTER);
-        selectorButton.setPadding(dp(9), dp(9), dp(9), dp(9));
-        selectorButton.setBackgroundColor(Color.TRANSPARENT);
-        selectorButton.setImageResource(R.drawable.ic_provider_picker);
-        selectorButton.setOnClickListener(v -> openSelector());
-        row.addView(
-                selectorButton,
-                new LinearLayout.LayoutParams(dp(40), dp(40)));
+        if (WidgetUpdates.VARIANT_WHEEL.equals(widgetVariant)) {
+            wheelList = new ListView(this);
+            wheelList.setContentDescription(getString(R.string.wheel_provider_button));
+            wheelList.setDivider(null);
+            wheelList.setDividerHeight(0);
+            wheelList.setVerticalScrollBarEnabled(false);
+            wheelList.setOverScrollMode(View.OVER_SCROLL_NEVER);
+            wheelList.setBackgroundColor(Color.TRANSPARENT);
+            wheelList.setAdapter(new ProviderRailAdapter());
+            wheelList.setSelection(
+                    ProviderWheelPolicy.centeredPositionForProvider(
+                            selected.ordinal(),
+                            ProviderTarget.values().length));
+            wheelList.setOnItemClickListener((parent, view, position, id) -> {
+                ProviderTarget[] providers = ProviderTarget.values();
+                if (providers.length == 0) return;
 
+                selected = providers[
+                        ProviderWheelPolicy.providerIndexForPosition(
+                                position,
+                                providers.length)];
+                selectedMode = WidgetPrefs.getMode(this, selected);
+                WidgetPrefs.setProvider(this, selected);
+                WidgetUpdates.updateAll(this);
+                refreshProviderUi();
+                openModePickerRight();
+            });
+            row.addView(
+                    wheelList,
+                    new LinearLayout.LayoutParams(dp(40), dp(40)));
+        } else {
+            classicSelectorButton = new ImageButton(this);
+            classicSelectorButton.setContentDescription(getString(R.string.provider_button));
+            classicSelectorButton.setScaleType(ImageView.ScaleType.FIT_CENTER);
+            classicSelectorButton.setPadding(dp(9), dp(9), dp(9), dp(9));
+            classicSelectorButton.setBackgroundColor(Color.TRANSPARENT);
+            classicSelectorButton.setImageResource(R.drawable.ic_provider_picker);
+            classicSelectorButton.setOnClickListener(v -> openSelector());
+            row.addView(
+                    classicSelectorButton,
+                    new LinearLayout.LayoutParams(dp(40), dp(40)));
+        }
+
+        refreshProviderUi();
         return row;
     }
 
+    private void refreshProviderUi() {
+        if (activeIcon == null || searchField == null) return;
+
+        activeIcon.setContentDescription(selected.label + " modes");
+        activeIcon.setImageBitmap(IconLoader.load(
+                this,
+                selected.packageName,
+                dp(40),
+                selected.label.substring(0, 1)));
+
+        searchField.setHint(selectedMode.inputHint);
+        searchField.setEnabled(selectedMode.acceptsText);
+
+        if (wheelList != null) {
+            wheelList.setContentDescription(
+                    selected.label + " infinite reel; swipe vertically and tap an app for modes");
+            wheelList.setSelection(
+                    ProviderWheelPolicy.centeredPositionForProvider(
+                            selected.ordinal(),
+                            ProviderTarget.values().length));
+        }
+    }
+
+    private void openModePickerLeft() {
+        hideKeyboard();
+
+        Intent modes = new Intent(this, ModePickerActivity.class)
+                .putExtra(ModePickerActivity.EXTRA_PROVIDER_ID, selected.id)
+                .putExtra(ModePickerActivity.EXTRA_ANCHOR_SIDE, ModePickerActivity.ANCHOR_LEFT);
+        setLeftSourceBounds(modes);
+        startActivity(modes);
+        finish();
+    }
+
+    private void openModePickerRight() {
+        hideKeyboard();
+
+        Intent modes = new Intent(this, ModePickerActivity.class)
+                .putExtra(ModePickerActivity.EXTRA_PROVIDER_ID, selected.id)
+                .putExtra(ModePickerActivity.EXTRA_ANCHOR_SIDE, ModePickerActivity.ANCHOR_RIGHT);
+        setRightSourceBounds(modes);
+        startActivity(modes);
+        finish();
+    }
+
     private void openSelector() {
+        hideKeyboard();
+
+        Intent selector = new Intent(this, PickerActivity.class);
+        setRightSourceBounds(selector);
+        startActivity(selector);
+        finish();
+    }
+
+    private void setLeftSourceBounds(Intent intent) {
+        if (sourceBounds != null && !sourceBounds.isEmpty()) {
+            int iconWidth = dp(40);
+            intent.setSourceBounds(new Rect(
+                    sourceBounds.left,
+                    sourceBounds.top,
+                    Math.min(sourceBounds.right, sourceBounds.left + iconWidth),
+                    sourceBounds.bottom));
+            return;
+        }
+
+        int[] location = new int[2];
+        activeIcon.getLocationOnScreen(location);
+        intent.setSourceBounds(new Rect(
+                location[0],
+                location[1],
+                location[0] + activeIcon.getWidth(),
+                location[1] + activeIcon.getHeight()));
+    }
+
+    private void setRightSourceBounds(Intent intent) {
+        if (sourceBounds != null && !sourceBounds.isEmpty()) {
+            int selectorWidth = dp(40);
+            intent.setSourceBounds(new Rect(
+                    Math.max(sourceBounds.left, sourceBounds.right - selectorWidth),
+                    sourceBounds.top,
+                    sourceBounds.right,
+                    sourceBounds.bottom));
+            return;
+        }
+
+        View anchor = wheelList != null ? wheelList : classicSelectorButton;
+        if (anchor == null) return;
+
+        int[] location = new int[2];
+        anchor.getLocationOnScreen(location);
+        intent.setSourceBounds(new Rect(
+                location[0],
+                location[1],
+                location[0] + anchor.getWidth(),
+                location[1] + anchor.getHeight()));
+    }
+
+    private void hideKeyboard() {
         InputMethodManager imm =
                 (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
         if (imm != null) {
             imm.hideSoftInputFromWindow(searchField.getWindowToken(), 0);
         }
-
-        Intent selector = new Intent(this, PickerActivity.class);
-        if (sourceBounds != null && !sourceBounds.isEmpty()) {
-            int selectorWidth = dp(40);
-            selector.setSourceBounds(new Rect(
-                    Math.max(sourceBounds.left, sourceBounds.right - selectorWidth),
-                    sourceBounds.top,
-                    sourceBounds.right,
-                    sourceBounds.bottom));
-        }
-        startActivity(selector);
-        finish();
     }
 
     private void submit() {
-        if (SearchLauncher.launch(this, selected, searchField.getText().toString())) {
+        if (SearchLauncher.launch(this, selectedMode, searchField.getText().toString())) {
             finish();
         }
     }
 
     private void positionSearchBar() {
-        if (root == null || searchBar == null || searchBar.getHeight() == 0) {
-            return;
-        }
+        if (root == null || searchBar == null || searchBar.getHeight() == 0) return;
 
         Rect visible = new Rect();
         getWindow().getDecorView().getWindowVisibleDisplayFrame(visible);
@@ -391,5 +518,52 @@ public final class SearchActivity extends Activity {
 
     private int dp(int value) {
         return Math.round(value * getResources().getDisplayMetrics().density);
+    }
+
+    private final class ProviderRailAdapter extends BaseAdapter {
+        private final ProviderTarget[] providers = ProviderTarget.values();
+
+        @Override
+        public int getCount() {
+            return ProviderWheelPolicy.VIRTUAL_ITEM_COUNT;
+        }
+
+        @Override
+        public Object getItem(int position) {
+            return providers[
+                    ProviderWheelPolicy.providerIndexForPosition(
+                            position,
+                            providers.length)];
+        }
+
+        @Override
+        public long getItemId(int position) {
+            return ProviderWheelPolicy.providerIndexForPosition(
+                    position,
+                    providers.length);
+        }
+
+        @Override
+        public View getView(int position, View convertView, ViewGroup parent) {
+            ImageView icon = convertView instanceof ImageView
+                    ? (ImageView) convertView
+                    : new ImageView(SearchActivity.this);
+
+            ProviderTarget target = providers[
+                    ProviderWheelPolicy.providerIndexForPosition(
+                            position,
+                            providers.length)];
+            icon.setLayoutParams(new ListView.LayoutParams(dp(40), dp(32)));
+            icon.setScaleType(ImageView.ScaleType.FIT_CENTER);
+            icon.setPadding(dp(5), dp(3), dp(5), dp(3));
+            icon.setBackgroundColor(Color.TRANSPARENT);
+            icon.setContentDescription(target.label);
+            icon.setImageBitmap(IconLoader.load(
+                    SearchActivity.this,
+                    target.packageName,
+                    dp(32),
+                    target.label.substring(0, 1)));
+            return icon;
+        }
     }
 }

@@ -39,7 +39,7 @@
             android:theme="@style/Theme.WidgetBar.Popup" />
 
         <activity
-            android:name=".ChatGptActionsActivity"
+            android:name=".ModePickerActivity"
             android:excludeFromRecents="true"
             android:exported="false"
             android:launchMode="singleTop"
@@ -71,15 +71,33 @@
             android:taskAffinity=""
             android:theme="@style/Theme.WidgetBar.Transparent" />
 
+        <service
+            android:name=".ProviderWheelService"
+            android:exported="true"
+            android:permission="android.permission.BIND_REMOTEVIEWS" />
+
         <receiver
             android:name=".SearchBarWidgetProvider"
-            android:exported="true">
+            android:exported="true"
+            android:label="@string/widget_classic_name">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
             <meta-data
                 android:name="android.appwidget.provider"
                 android:resource="@xml/search_bar_widget_info" />
+        </receiver>
+
+        <receiver
+            android:name=".WheelSearchBarWidgetProvider"
+            android:exported="true"
+            android:label="@string/widget_wheel_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/search_bar_wheel_widget_info" />
         </receiver>
     </application>
 </manifest>

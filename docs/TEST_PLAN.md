@@ -5,65 +5,125 @@
 1. XML parse.
 2. Zero requested permissions.
 3. Persistent pill remains compact 48dp.
-4. Right selector remains vertical, icon-only, and non-overlapping.
-5. Center writing-bar tap launches gesture-aware `SearchActivity` directly.
-6. Double-tap is covered across the full Android timing window: early taps may re-trigger the widget PendingIntent, later taps are captured by the focused `SearchActivity`, and either path opens the selected app normally.
-7. Single tap opens only the local editable surface.
-8. Explicit non-empty submit is still required for provider search/create handoff.
-9. ChatGPT left icon exposes voice / camera / photo / dictation actions.
-10. Voice uses ChatGPT voice deep link.
-11. Camera uses system capture + targeted image share.
-12. Photo uses system picker + targeted image share.
-13. Dictation uses speech recognizer + ChatGPT prompt handoff.
-14. Debug build.
-15. JVM tests.
-16. Lint.
-17. APK audit.
-18. `git diff --check`.
+4. Classic right provider selector remains vertical, icon-only, and non-overlapping.
+5. Wheel variant uses an infinite vertical `ListView` slot reel and contains no `StackView`, rotation/card stack, or discrete cycle policy.
+6. Left mode picker remains vertical, provider-scoped, and non-overlapping.
+7. Mode selection is persisted independently per provider.
+8. Center retains Android-standard double-tap disambiguation.
+9. Double-tap opens the selected app normally.
+10. Text modes require non-empty explicit submit.
+11. Non-text action modes launch immediately from the left mode picker; no additional center-bar tap is allowed.
+12. Google Gemini uses `PROCESS_TEXT` with the typed prompt.
+13. YouTube Shorts/subscriptions use installed-app shortcut actions.
+14. Instagram Story/Reel/Messages routes remain present.
+15. TikTok Create/Inbox routes remain present.
+16. ChatGPT Voice/Camera/Photo/Dictation remain available through `ChatGptMediaActivity`.
+17. Debug build.
+18. JVM tests.
+19. Lint.
+20. APK audit.
+21. `git diff --check`.
 
 ## Device validation
 
-### Center writing bar
+### Provider selectors
 
-For each selected target:
+**Classic** — for Google / YouTube / Instagram / TikTok / ChatGPT:
 
-1. single tap center once
-2. verify provider app does not open
-3. after the double-tap timeout, verify local edit field appears
-4. verify keyboard appears and field stays visible above it
-5. cancel and return home
-6. double-tap center within Android double-tap timing
-7. verify the selected app opens to its normal home, not to search results
+1. open the right selector
+2. choose provider
+3. verify selected app icon moves left
+4. verify that provider's persisted mode center label appears
 
-### Search submit
+**Wheel**:
 
-For each search provider:
+1. add the separate `Widget Bar - Wheel` widget
+2. swipe vertically inside only the right-side 44dp provider reel
+3. swipe past at least two full five-provider cycles upward and downward; verify icons repeat with no terminal end or overscroll edge
+4. tap the visible provider icon
+5. verify that provider becomes active and its mode menu opens on the right in the same interaction
+6. verify the center label updates after the provider is committed
+7. repeat inside the editable `SearchActivity` Wheel variant
 
-1. single tap
-2. type unique query
-3. press search/send
-4. verify only then the selected provider opens with the query
+### Left mode picker
 
-For ChatGPT:
+For each provider:
 
-1. single tap center
-2. type prompt
-3. submit
-4. verify only then ChatGPT opens with prompt handoff
+1. tap left app icon
+2. verify only that provider's modes are shown
+3. verify vertical upward layout with no overlap
+4. choose a mode
+5. verify center label updates
+6. reopen picker and verify selected mode highlight/persistence
 
-### ChatGPT left icon
+Expected mode counts:
 
-With ChatGPT selected:
+- Google: 2
+- YouTube: 3
+- Instagram: 4
+- TikTok: 3
+- ChatGPT: 5
 
-1. tap the left ChatGPT icon
-2. verify a compact quick-action menu appears above the icon
-3. verify actions: voice, camera, photo upload, dictation
-4. voice → ChatGPT voice mode
-5. camera → camera UI → captured image handed to ChatGPT
-6. photo → Android photo picker → chosen image handed to ChatGPT
-7. dictation → speech recognizer → recognized text handed to ChatGPT
-8. verify Widget Bar itself requested no new runtime permissions
+### Text modes
+
+For Google Search, Google Gemini, YouTube Search, Instagram Search, TikTok Search, ChatGPT New chat:
+
+1. select mode
+2. single tap center
+3. verify provider app does not open before submit
+4. verify keyboard appears
+5. verify active bar is visible above keyboard
+6. type unique text
+7. press search/send
+8. verify selected destination receives/uses the text
+
+Gemini-specific:
+- verify typed text appears verbatim in Gemini after submit
+
+### Action modes
+
+For each action mode:
+
+1. open the provider's mode picker
+2. tap the action-mode icon
+3. verify the expected app surface opens immediately
+4. verify no additional center-bar tap is required
+
+Required:
+
+- YouTube Shorts
+- YouTube Subscriptions
+- Instagram Story
+- Instagram Reel
+- Instagram Messages
+- TikTok Create
+- TikTok Inbox
+- ChatGPT Voice
+- ChatGPT Camera
+- ChatGPT Photo
+- ChatGPT Dictation
+
+### Double-tap regression
+
+For at least one provider in each mode class:
+
+1. double-tap center inside Android timing
+2. verify selected app's normal home opens instead of the selected mode
 
 ### Persistence
 
-Reboot and confirm selected provider remains selected.
+1. choose a non-default mode for several providers
+2. switch providers
+3. switch back
+4. verify each provider restores its own mode
+5. reboot
+6. verify provider and mode persistence
+
+### Safety
+
+Confirm:
+
+- zero Widget Bar permissions
+- no launcher/system package mutation
+- no accessibility/overlay service
+- no root/system modifications

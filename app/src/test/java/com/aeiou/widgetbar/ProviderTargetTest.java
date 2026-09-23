@@ -1,8 +1,7 @@
 package com.aeiou.widgetbar;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertNull;
 
 import org.junit.Test;
 
@@ -24,13 +23,8 @@ public final class ProviderTargetTest {
     }
 
     @Test
-    public void chatGptIsCreateActionOnly() {
-        assertTrue(ProviderTarget.CHATGPT.createAction);
-        assertFalse(ProviderTarget.GOOGLE.createAction);
-        assertFalse(ProviderTarget.YOUTUBE.createAction);
-        assertFalse(ProviderTarget.INSTAGRAM.createAction);
-        assertFalse(ProviderTarget.TIKTOK.createAction);
-        assertEquals("New chat", ProviderTarget.CHATGPT.collapsedHint);
-        assertEquals("Ask ChatGPT…", ProviderTarget.CHATGPT.inputHint);
+    public void chatGptHasNoSearchUrl() {
+        assertNull(ProviderTarget.CHATGPT.searchUrl);
+        assertEquals("com.openai.chatgpt", ProviderTarget.CHATGPT.packageName);
     }
 }
