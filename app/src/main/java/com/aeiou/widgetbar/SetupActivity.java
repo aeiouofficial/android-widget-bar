@@ -102,7 +102,7 @@ public final class SetupActivity extends Activity {
         Intent homeIntent = new Intent(Intent.ACTION_MAIN)
                 .addCategory(Intent.CATEGORY_HOME)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        startActivity(homeIntent);
+        SearchLauncher.startSafely(this, homeIntent, "launcher-home");
         finish();
     }
 
