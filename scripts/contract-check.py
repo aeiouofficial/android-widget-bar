@@ -66,6 +66,17 @@ pin_policy_text = pin_policy.read_text(encoding="utf-8")
 if "<uses-permission" in manifest_text:
     failures.append("Manifest must not request runtime/system permissions.")
 
+for receiver in (".SearchBarWidgetProvider", ".WheelSearchBarWidgetProvider"):
+    private_receiver = (
+        f'android:name="{receiver}"' in manifest_text
+        and 'android:exported="false"' in manifest_text[
+            manifest_text.index(f'android:name="{receiver}"'):
+            manifest_text.index(f'android:name="{receiver}"') + 180
+        ]
+    )
+    if not private_receiver:
+        failures.append(f"Widget receiver must remain non-exported: {receiver}")
+
 for component in (".SearchBarWidgetProvider", ".WheelSearchBarWidgetProvider", ".ProviderWheelService"):
     if component not in manifest_text:
         failures.append(f"Manifest missing wheel/classic component: {component}")
@@ -267,6 +278,20 @@ for token in (
 if "WidgetUpdates.VARIANT_CLASSIC" not in widget_text:
     failures.append("Classic widget must identify itself as the Classic SearchActivity variant.")
 
+for source_name, source_text, variant in (
+    ("Classic", widget_text, "classic"),
+    ("Wheel", wheel_widget_text, "wheel"),
+):
+    if "AppWidgetManager.EXTRA_APPWIDGET_ID" not in source_text:
+        failures.append(f"{source_name} widget must forward its appWidgetId to SearchActivity.")
+    if f"widgetbar://pending/{variant}/" not in source_text:
+        failures.append(f"{source_name} PendingIntents must have per-widget data identity.")
+    if "setEditing(Context context, int appWidgetId, boolean editing)" not in source_text:
+        failures.append(f"{source_name} edit visibility must support exact widget-instance updates.")
+
+if "int appWidgetId" not in updates_text:
+    failures.append("WidgetUpdates must route edit state with an exact appWidgetId.")
+
 if "SearchBarWidgetProvider.updateAll(context)" not in updates_text or "WheelSearchBarWidgetProvider.updateAll(context)" not in updates_text:
     failures.append("Shared widget updates must refresh Classic and Wheel together.")
 
@@ -316,8 +341,14 @@ if "SearchLauncher.openAppHome(this, selected)" not in search_text:
 if "SOFT_INPUT_ADJUST_RESIZE" not in search_text or "getWindowVisibleDisplayFrame" not in search_text:
     failures.append("Text edit mode must stay keyboard-aware.")
 
-if "WidgetUpdates.setEditing(this, widgetVariant, true)" not in search_text:
-    failures.append("SearchActivity must hide only the widget variant that launched it while editing.")
+if "AppWidgetManager.EXTRA_APPWIDGET_ID" not in search_text:
+    failures.append("SearchActivity must track the exact source appWidgetId.")
+
+if "WidgetUpdates.setEditing(this, widgetVariant, appWidgetId, true)" not in search_text:
+    failures.append("SearchActivity must hide only the exact widget instance that launched it.")
+
+if "WidgetUpdates.setEditing(this, widgetVariant, appWidgetId, false)" not in search_text:
+    failures.append("SearchActivity must restore only the exact source widget after editing.")
 
 if "View.INVISIBLE" not in widget_text or "View.INVISIBLE" not in wheel_widget_text:
     failures.append("Both Classic and Wheel widgets must support duplicate-free edit mode.")
@@ -373,6 +404,24 @@ if "chatgpt://" not in chat_text or "https://chatgpt.com/" not in chat_text:
 if "static boolean openAppHome" not in launcher_text or "getLaunchIntentForPackage" not in launcher_text:
     failures.append("Double-tap normal-app route must prefer installed launcher intents.")
 
+for token in (
+    "static boolean startSafely",
+    "ActivityNotFoundException | SecurityException",
+    "launch_failed route=",
+):
+    if token not in launcher_text:
+        failures.append(f"Crash-safe external launch guard missing: {token}")
+
+for token in (
+    "STATE_PENDING_CAMERA_URI",
+    "onSaveInstanceState",
+    "savedInstanceState != null",
+    "publishCameraUri",
+    "camera_cleanup_failed",
+):
+    if token not in chat_media_text:
+        failures.append(f"ChatGPT media lifecycle hardening missing: {token}")
+
 if "SearchBarWidgetProvider.class" not in setup_text or "WheelSearchBarWidgetProvider.class" not in setup_text:
     failures.append("SetupActivity must offer both Classic and Wheel widget variants.")
 
@@ -390,7 +439,10 @@ if failures:
         print(f"FAIL: {failure}", file=sys.stderr)
     sys.exit(1)
 
-print("PASS: XML parses and manifest remains permission-free")
+print("PASS: XML parses, manifest remains permission-free, widget receivers are private")
+print("PASS: PendingIntents are instance-unique and edit visibility is widget-scoped")
+print("PASS: external launch fallbacks are crash-safe")
+print("PASS: ChatGPT media handoff survives activity recreation")
 print("PASS: compact 48dp idle/edit pill remains intact")
 print("PASS: Classic right app selector remains vertical and icon-only")
 print("PASS: Wheel right side is an infinite modulo-wrapped vertical slot rail")
