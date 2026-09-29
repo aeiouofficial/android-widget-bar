@@ -20,11 +20,24 @@ public final class WheelSearchBarWidgetProvider extends AppWidgetProvider {
     }
 
     static void updateAll(Context context) {
-        setEditing(context, false);
+        setEditing(context, AppWidgetManager.INVALID_APPWIDGET_ID, false);
     }
 
-    static void setEditing(Context context, boolean editing) {
+    static void setEditing(Context context, int appWidgetId, boolean editing) {
         AppWidgetManager manager = AppWidgetManager.getInstance(context);
+
+        if (appWidgetId != AppWidgetManager.INVALID_APPWIDGET_ID) {
+            manager.updateAppWidget(
+                    appWidgetId,
+                    buildViews(context, appWidgetId, editing));
+            if (!editing) {
+                manager.notifyAppWidgetViewDataChanged(
+                        appWidgetId,
+                        R.id.provider_wheel);
+            }
+            return;
+        }
+
         ComponentName provider = new ComponentName(context, WheelSearchBarWidgetProvider.class);
         int[] ids = manager.getAppWidgetIds(provider);
         for (int id : ids) {
@@ -71,7 +84,10 @@ public final class WheelSearchBarWidgetProvider extends AppWidgetProvider {
 
         Intent centerIntent = new Intent(context, SearchActivity.class)
                 .putExtra(SearchActivity.EXTRA_WIDGET_DOUBLE_TAP, true)
-                .putExtra(SearchActivity.EXTRA_WIDGET_VARIANT, WidgetUpdates.VARIANT_WHEEL);
+                .putExtra(SearchActivity.EXTRA_WIDGET_VARIANT, WidgetUpdates.VARIANT_WHEEL)
+                .putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId)
+                .setData(Uri.parse(
+                        "widgetbar://pending/wheel/" + widgetId + "/center"));
         PendingIntent centerPending = PendingIntent.getActivity(
                 context,
                 widgetId * 100 + 1,
@@ -79,7 +95,9 @@ public final class WheelSearchBarWidgetProvider extends AppWidgetProvider {
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 
         Intent leftModeIntent = new Intent(context, ModePickerActivity.class)
-                .putExtra(ModePickerActivity.EXTRA_ANCHOR_SIDE, ModePickerActivity.ANCHOR_LEFT);
+                .putExtra(ModePickerActivity.EXTRA_ANCHOR_SIDE, ModePickerActivity.ANCHOR_LEFT)
+                .setData(Uri.parse(
+                        "widgetbar://pending/wheel/" + widgetId + "/modes"));
         PendingIntent leftModePending = PendingIntent.getActivity(
                 context,
                 widgetId * 100 + 2,
@@ -88,7 +106,9 @@ public final class WheelSearchBarWidgetProvider extends AppWidgetProvider {
 
         Intent wheelTemplate = new Intent(context, ModePickerActivity.class)
                 .putExtra(ModePickerActivity.EXTRA_ANCHOR_SIDE, ModePickerActivity.ANCHOR_RIGHT)
-                .putExtra(ModePickerActivity.EXTRA_FROM_WHEEL, true);
+                .putExtra(ModePickerActivity.EXTRA_FROM_WHEEL, true)
+                .setData(Uri.parse(
+                        "widgetbar://pending/wheel/" + widgetId + "/provider"));
         int templateFlags = PendingIntent.FLAG_UPDATE_CURRENT;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             templateFlags |= PendingIntent.FLAG_MUTABLE;
