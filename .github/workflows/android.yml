@@ -4,8 +4,11 @@ on:
   push:
     branches:
       - main
-      - "feat/**"
   pull_request:
+
+concurrency:
+  group: android-ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -58,3 +61,4 @@ jobs:
           name: widget-bar-debug
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+          retention-days: 7
