@@ -6,6 +6,8 @@ The verified pre-mode-expansion snapshot is preserved at tag/release `v0.1.0-wor
 
 Mode expansion is preserved on `feat/app-mode-actions-v0.2`. The second selector experiment lives independently on `feat/wheel-widget-v0.3`, so Classic and Wheel remain separately available.
 
+`feat/widget-hardening-v0.4` layers reliability/security changes on top of v0.3 without mutating the verified historical branches.
+
 ## Persistent widget
 
 The launcher-owned AppWidget is a transparent host containing a fixed 48dp pill:
@@ -169,6 +171,20 @@ For text modes `SearchActivity`:
 - restores it on pause/finish
 - allows the left mode picker and right app picker from edit mode
 
+## Instance and intent isolation
+
+Widget click intents include both the exact `appWidgetId` and an action-specific `widgetbar://pending/<variant>/<id>/<action>` data URI. This matters because Android PendingIntent identity does not use extras; relying on arithmetic request-code schemes alone can collide across Classic and Wheel widget IDs.
+
+`SearchActivity` carries the source `appWidgetId` through the edit lifecycle. Hiding and restoring the launcher-owned RemoteViews therefore updates only that widget instance. Global provider/mode preference updates still refresh all widgets intentionally.
+
+The collection PendingIntent template remains mutable only because `RemoteViewsFactory.setOnClickFillInIntent(...)` requires fill-in extras. Its base intent is explicit to `ModePickerActivity`.
+
+## Launch failure containment
+
+`SearchLauncher.startSafely(...)` catches missing-activity and security-rejection failures for external routes without logging query text. Primary app/deep-link routes fall through to the existing web/app fallback rather than crashing the widget flow.
+
+`ChatGptMediaActivity` saves pending camera state across recreation, publishes successful MediaStore captures before sharing, and cleans failed/cancelled pending rows.
+
 ## Safety
 
-The app requests zero permissions and does not modify launcher databases, system packages, ROM state, or accessibility/overlay settings.
+The app requests zero permissions and does not modify launcher databases, system packages, ROM state, or accessibility/overlay settings. AppWidget receivers are non-exported; the Wheel collection service is exported only behind the system `android.permission.BIND_REMOTEVIEWS` permission.
