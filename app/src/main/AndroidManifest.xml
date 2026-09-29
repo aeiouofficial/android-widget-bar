@@ -78,7 +78,7 @@
 
         <receiver
             android:name=".SearchBarWidgetProvider"
-            android:exported="true"
+            android:exported="false"
             android:label="@string/widget_classic_name">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
@@ -90,7 +90,7 @@
 
         <receiver
             android:name=".WheelSearchBarWidgetProvider"
-            android:exported="true"
+            android:exported="false"
             android:label="@string/widget_wheel_name">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
