@@ -1,11 +1,14 @@
 package com.aeiou.widgetbar;
 
 import android.app.SearchManager;
+import android.content.ActivityNotFoundException;
 import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
+import android.util.Log;
 
 final class SearchLauncher {
+    private static final String TAG = "WidgetBarLaunch";
     private static final String GOOGLE_PACKAGE = "com.google.android.googlequicksearchbox";
     private static final String YOUTUBE_PACKAGE = "com.google.android.youtube";
     private static final String INSTAGRAM_PACKAGE = "com.instagram.android";
@@ -28,11 +31,12 @@ final class SearchLauncher {
             case GOOGLE_GEMINI:
                 return launchGeminiQuestion(context, trimmed);
             case CHATGPT_NEW_CHAT:
-                Intent create = new Intent(context, ChatGptNewChatActivity.class)
-                        .putExtra(ChatGptNewChatActivity.EXTRA_PROMPT, trimmed)
-                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                context.startActivity(create);
-                return true;
+                return startSafely(
+                        context,
+                        new Intent(context, ChatGptNewChatActivity.class)
+                                .putExtra(ChatGptNewChatActivity.EXTRA_PROMPT, trimmed)
+                                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                        "chatgpt-new-chat");
             case GOOGLE_SEARCH:
                 return launchGoogleSearch(context, trimmed);
             case YOUTUBE_SEARCH:
@@ -55,7 +59,8 @@ final class SearchLauncher {
                 return startOrUrlFallback(
                         context,
                         intent,
-                        "https://www.youtube.com/shorts");
+                        "https://www.youtube.com/shorts",
+                        "youtube-shorts");
 
             case YOUTUBE_SUBSCRIPTIONS:
                 intent = new Intent("com.google.android.youtube.action.open.subscriptions")
@@ -64,14 +69,16 @@ final class SearchLauncher {
                 return startOrUrlFallback(
                         context,
                         intent,
-                        "https://www.youtube.com/feed/subscriptions");
+                        "https://www.youtube.com/feed/subscriptions",
+                        "youtube-subscriptions");
 
             case INSTAGRAM_STORY:
                 return startViewWithPackageFallback(
                         context,
                         Uri.parse("instagram://story-camera"),
                         INSTAGRAM_PACKAGE,
-                        "https://www.instagram.com/");
+                        "https://www.instagram.com/",
+                        "instagram-story");
 
             case INSTAGRAM_REEL:
                 intent = new Intent(
@@ -79,36 +86,40 @@ final class SearchLauncher {
                         Uri.parse("instagram://reels-camera"))
                         .setPackage(INSTAGRAM_PACKAGE)
                         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                if (intent.resolveActivity(context.getPackageManager()) != null) {
-                    context.startActivity(intent);
+                if (canResolve(context, intent)
+                        && startSafely(context, intent, "instagram-reel-camera")) {
                     return true;
                 }
                 return startViewWithPackageFallback(
                         context,
                         Uri.parse("instagram://reels"),
                         INSTAGRAM_PACKAGE,
-                        "https://www.instagram.com/reels/");
+                        "https://www.instagram.com/reels/",
+                        "instagram-reels");
 
             case INSTAGRAM_MESSAGES:
                 return startViewWithPackageFallback(
                         context,
                         Uri.parse("instagram://direct-inbox"),
                         INSTAGRAM_PACKAGE,
-                        "https://www.instagram.com/direct/inbox/");
+                        "https://www.instagram.com/direct/inbox/",
+                        "instagram-messages");
 
             case TIKTOK_CREATE:
                 return startViewWithPackageFallback(
                         context,
                         Uri.parse("snssdk1233://aweme/create"),
                         TIKTOK_PACKAGE,
-                        "https://www.tiktok.com/");
+                        "https://www.tiktok.com/",
+                        "tiktok-create");
 
             case TIKTOK_INBOX:
                 return startViewWithPackageFallback(
                         context,
                         Uri.parse("snssdk1233://aweme/notification"),
                         TIKTOK_PACKAGE,
-                        "https://www.tiktok.com/");
+                        "https://www.tiktok.com/",
+                        "tiktok-inbox");
 
             case CHATGPT_VOICE:
                 return launchChatGptMedia(context, ChatGptMediaActivity.ACTION_VOICE);
@@ -128,8 +139,9 @@ final class SearchLauncher {
         Intent launch = context.getPackageManager().getLaunchIntentForPackage(target.packageName);
         if (launch != null) {
             launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            context.startActivity(launch);
-            return true;
+            if (startSafely(context, launch, target.id + "-home")) {
+                return true;
+            }
         }
 
         String url;
@@ -152,9 +164,7 @@ final class SearchLauncher {
                 break;
         }
 
-        context.startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url))
-                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
-        return true;
+        return openWeb(context, url, target.id + "-home-web");
     }
 
     private static boolean launchGoogleSearch(Context context, String query) {
@@ -162,16 +172,18 @@ final class SearchLauncher {
         webSearch.putExtra(SearchManager.QUERY, query);
         webSearch.setPackage(GOOGLE_PACKAGE);
         webSearch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        if (webSearch.resolveActivity(context.getPackageManager()) != null) {
-            context.startActivity(webSearch);
+        if (canResolve(context, webSearch)
+                && startSafely(context, webSearch, "google-search")) {
             return true;
         }
 
+        String url = "https://www.google.com/search?q=" + Uri.encode(query);
         return startViewWithPackageFallback(
                 context,
-                Uri.parse("https://www.google.com/search?q=" + Uri.encode(query)),
+                Uri.parse(url),
                 GOOGLE_PACKAGE,
-                "https://www.google.com/search?q=" + Uri.encode(query));
+                url,
+                "google-search-web");
     }
 
     private static boolean launchGeminiQuestion(Context context, String query) {
@@ -182,8 +194,8 @@ final class SearchLauncher {
                 .setPackage(GOOGLE_PACKAGE)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
 
-        if (processText.resolveActivity(context.getPackageManager()) != null) {
-            context.startActivity(processText);
+        if (canResolve(context, processText)
+                && startSafely(context, processText, "google-gemini-process-text")) {
             return true;
         }
 
@@ -191,7 +203,8 @@ final class SearchLauncher {
                 context,
                 Uri.parse("https://gemini.google.com/app"),
                 GOOGLE_PACKAGE,
-                "https://gemini.google.com/app");
+                "https://gemini.google.com/app",
+                "google-gemini-web");
     }
 
     private static boolean launchSearchUrl(
@@ -203,47 +216,69 @@ final class SearchLauncher {
                 context,
                 Uri.parse(url),
                 target.packageName,
-                url);
+                url,
+                target.id + "-search");
     }
 
     private static boolean launchChatGptMedia(Context context, String action) {
         Intent intent = new Intent(context, ChatGptMediaActivity.class)
                 .putExtra(ChatGptMediaActivity.EXTRA_ACTION, action)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        context.startActivity(intent);
-        return true;
+        return startSafely(context, intent, "chatgpt-media-" + action);
     }
 
     private static boolean startOrUrlFallback(
             Context context,
             Intent intent,
-            String fallbackUrl) {
-        if (intent.resolveActivity(context.getPackageManager()) != null) {
-            context.startActivity(intent);
+            String fallbackUrl,
+            String route) {
+        if (canResolve(context, intent)
+                && startSafely(context, intent, route)) {
             return true;
         }
-
-        context.startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(fallbackUrl))
-                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
-        return true;
+        return openWeb(context, fallbackUrl, route + "-web");
     }
 
     private static boolean startViewWithPackageFallback(
             Context context,
             Uri appUri,
             String packageName,
-            String fallbackUrl) {
+            String fallbackUrl,
+            String route) {
         Intent appIntent = new Intent(Intent.ACTION_VIEW, appUri)
                 .setPackage(packageName)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
 
-        if (appIntent.resolveActivity(context.getPackageManager()) != null) {
-            context.startActivity(appIntent);
+        if (canResolve(context, appIntent)
+                && startSafely(context, appIntent, route)) {
             return true;
         }
 
-        context.startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(fallbackUrl))
-                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
-        return true;
+        return openWeb(context, fallbackUrl, route + "-web");
+    }
+
+    private static boolean openWeb(Context context, String url, String route) {
+        Intent web = new Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        return startSafely(context, web, route);
+    }
+
+    private static boolean canResolve(Context context, Intent intent) {
+        return intent.resolveActivity(context.getPackageManager()) != null;
+    }
+
+    static boolean startSafely(Context context, Intent intent, String route) {
+        try {
+            context.startActivity(intent);
+            return true;
+        } catch (ActivityNotFoundException | SecurityException e) {
+            Log.w(
+                    TAG,
+                    "launch_failed route=" + route
+                            + " package=" + intent.getPackage()
+                            + " component=" + intent.getComponent()
+                            + " cause=" + e.getClass().getSimpleName());
+            return false;
+        }
     }
 }
