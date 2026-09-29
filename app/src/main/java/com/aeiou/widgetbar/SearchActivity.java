@@ -1,6 +1,7 @@
 package com.aeiou.widgetbar;
 
 import android.app.Activity;
+import android.appwidget.AppWidgetManager;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Color;
@@ -40,6 +41,7 @@ public final class SearchActivity extends Activity {
     private ProviderTarget selected;
     private ProviderMode selectedMode;
     private String widgetVariant;
+    private int appWidgetId = AppWidgetManager.INVALID_APPWIDGET_ID;
     private FrameLayout root;
     private LinearLayout searchBar;
     private EditText searchField;
@@ -65,6 +67,9 @@ public final class SearchActivity extends Activity {
         sourceBounds = getIntent().getSourceBounds();
         gestureAware = getIntent().getBooleanExtra(EXTRA_WIDGET_DOUBLE_TAP, false);
         widgetVariant = getIntent().getStringExtra(EXTRA_WIDGET_VARIANT);
+        appWidgetId = getIntent().getIntExtra(
+                AppWidgetManager.EXTRA_APPWIDGET_ID,
+                AppWidgetManager.INVALID_APPWIDGET_ID);
         if (widgetVariant == null) {
             widgetVariant = WidgetUpdates.VARIANT_CLASSIC;
         }
@@ -109,6 +114,16 @@ public final class SearchActivity extends Activity {
         if (incomingVariant != null) {
             widgetVariant = incomingVariant;
         }
+        appWidgetId = intent.getIntExtra(
+                AppWidgetManager.EXTRA_APPWIDGET_ID,
+                appWidgetId);
+        Rect incomingBounds = intent.getSourceBounds();
+        if (incomingBounds != null && !incomingBounds.isEmpty()) {
+            sourceBounds = incomingBounds;
+        }
+        selected = WidgetPrefs.getProvider(this);
+        selectedMode = WidgetPrefs.getMode(this, selected);
+        refreshProviderUi();
 
         boolean incomingGestureAware =
                 intent.getBooleanExtra(EXTRA_WIDGET_DOUBLE_TAP, false);
@@ -165,7 +180,7 @@ public final class SearchActivity extends Activity {
         cancelBeginEditing();
         clearTapPassthrough();
         if (editingActive) {
-            WidgetUpdates.setEditing(this, widgetVariant, false);
+            WidgetUpdates.setEditing(this, widgetVariant, appWidgetId, false);
             editingActive = false;
         }
         super.onPause();
@@ -176,7 +191,7 @@ public final class SearchActivity extends Activity {
         cancelBeginEditing();
         clearTapPassthrough();
         if (editingActive) {
-            WidgetUpdates.setEditing(this, widgetVariant, false);
+            WidgetUpdates.setEditing(this, widgetVariant, appWidgetId, false);
             editingActive = false;
         }
         super.finish();
@@ -193,7 +208,7 @@ public final class SearchActivity extends Activity {
         searchBar.setVisibility(View.INVISIBLE);
 
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE);
-        WidgetUpdates.setEditing(this, widgetVariant, false);
+        WidgetUpdates.setEditing(this, widgetVariant, appWidgetId, false);
 
         beginEditingRunnable = () -> {
             if (!waitingForSecondTap) return;
@@ -221,7 +236,7 @@ public final class SearchActivity extends Activity {
         if (editingActive) return;
         editingActive = true;
         searchBar.setVisibility(View.VISIBLE);
-        WidgetUpdates.setEditing(this, widgetVariant, true);
+        WidgetUpdates.setEditing(this, widgetVariant, appWidgetId, true);
     }
 
     private void clearTapPassthrough() {
