@@ -18,11 +18,16 @@
 14. Instagram Story/Reel/Messages routes remain present.
 15. TikTok Create/Inbox routes remain present.
 16. ChatGPT Voice/Camera/Photo/Dictation remain available through `ChatGptMediaActivity`.
-17. Debug build.
-18. JVM tests.
-19. Lint.
-20. APK audit.
-21. `git diff --check`.
+17. Classic and Wheel AppWidget receivers are non-exported; Wheel `RemoteViewsService` remains protected by `BIND_REMOTEVIEWS`.
+18. Classic/Wheel PendingIntents contain instance-unique data identities and center actions forward `EXTRA_APPWIDGET_ID`.
+19. Edit visibility is scoped to the exact source `appWidgetId`.
+20. External app/deep-link starts are guarded and retain fallbacks when the target activity cannot launch.
+21. ChatGPT media activity saves pending camera state across recreation and cleans failed pending rows.
+22. Debug build.
+23. JVM tests.
+24. Lint.
+25. APK audit.
+26. `git diff --check`.
 
 ## Device validation
 
@@ -119,11 +124,38 @@ For at least one provider in each mode class:
 5. reboot
 6. verify provider and mode persistence
 
+### Multi-instance isolation
+
+1. Place at least two Classic widgets and one Wheel widget.
+2. Tap the center of one Classic widget and wait for edit mode.
+3. Verify only that exact widget is hidden; the other Classic and Wheel instances stay visible.
+4. Exit edit mode and verify the source widget returns.
+5. Repeat from the Wheel widget.
+6. Alternate rapidly between Classic and Wheel center/left/right actions and verify variant/provider extras never cross over.
+
+### Failure fallback
+
+1. Disable or uninstall one optional target app.
+2. Trigger its search/action route.
+3. Verify Widget Bar falls back without crashing.
+4. Repeat with ChatGPT absent for New chat, Voice, Camera/Photo share.
+5. Confirm Logcat contains route/cause metadata but no entered query text.
+
+### Media recreation
+
+1. Start ChatGPT Camera from Widget Bar.
+2. Background/rotate/recreate Widget Bar while the camera contract is active.
+3. Complete the capture.
+4. Verify a single capture is published and shared; no second camera launch occurs.
+5. Cancel a capture and verify no pending WidgetBar image remains visible.
+
 ### Safety
 
 Confirm:
 
 - zero Widget Bar permissions
+- Classic/Wheel AppWidget receivers are non-exported
+- Wheel collection service is protected by `BIND_REMOTEVIEWS`
 - no launcher/system package mutation
 - no accessibility/overlay service
 - no root/system modifications
