@@ -13,11 +13,15 @@ final class WidgetUpdates {
         WheelSearchBarWidgetProvider.updateAll(context);
     }
 
-    static void setEditing(Context context, String variant, boolean editing) {
+    static void setEditing(
+            Context context,
+            String variant,
+            int appWidgetId,
+            boolean editing) {
         if (VARIANT_WHEEL.equals(variant)) {
-            WheelSearchBarWidgetProvider.setEditing(context, editing);
+            WheelSearchBarWidgetProvider.setEditing(context, appWidgetId, editing);
         } else {
-            SearchBarWidgetProvider.setEditing(context, editing);
+            SearchBarWidgetProvider.setEditing(context, appWidgetId, editing);
         }
     }
 }
