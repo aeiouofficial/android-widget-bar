@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/wheel_item_root"
+    android:layout_width="40dp"
+    android:layout_height="32dp"
+    android:background="@drawable/wheel_knob_item_bg">
+
+    <ImageView
+        android:id="@+id/wheel_icon"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        android:layout_gravity="center"
+        android:contentDescription="@string/wheel_provider_button"
+        android:padding="5dp"
+        android:scaleType="fitCenter" />
+</FrameLayout>

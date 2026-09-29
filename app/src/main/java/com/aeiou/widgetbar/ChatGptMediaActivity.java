@@ -10,6 +10,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.provider.MediaStore;
 import android.speech.RecognizerIntent;
+import android.util.Log;
 
 import java.util.ArrayList;
 
@@ -20,6 +21,8 @@ public final class ChatGptMediaActivity extends Activity {
     static final String ACTION_PHOTO = "photo";
     static final String ACTION_DICTATION = "dictation";
 
+    private static final String TAG = "WidgetBarMedia";
+    private static final String STATE_PENDING_CAMERA_URI = "pending_camera_uri";
     private static final int REQUEST_CAMERA = 1001;
     private static final int REQUEST_PHOTO = 1002;
     private static final int REQUEST_DICTATION = 1003;
@@ -31,6 +34,14 @@ public final class ChatGptMediaActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         overridePendingTransition(0, 0);
+
+        if (savedInstanceState != null) {
+            String pendingUri = savedInstanceState.getString(STATE_PENDING_CAMERA_URI);
+            if (pendingUri != null && !pendingUri.isEmpty()) {
+                pendingCameraUri = Uri.parse(pendingUri);
+            }
+            return;
+        }
 
         String action = getIntent().getStringExtra(EXTRA_ACTION);
         if (ACTION_VOICE.equals(action)) {
@@ -46,6 +57,16 @@ public final class ChatGptMediaActivity extends Activity {
         }
     }
 
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        if (pendingCameraUri != null) {
+            outState.putString(
+                    STATE_PENDING_CAMERA_URI,
+                    pendingCameraUri.toString());
+        }
+        super.onSaveInstanceState(outState);
+    }
+
     private void openVoice() {
         Intent voice = new Intent(
                 Intent.ACTION_VIEW,
@@ -53,9 +74,11 @@ public final class ChatGptMediaActivity extends Activity {
                 .setPackage(CHATGPT_PACKAGE)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
 
-        if (voice.resolveActivity(getPackageManager()) != null) {
-            startActivity(voice);
-        } else {
+        if (voice.resolveActivity(getPackageManager()) == null
+                || !SearchLauncher.startSafely(
+                        this,
+                        voice,
+                        "chatgpt-voice")) {
             SearchLauncher.openAppHome(this, ProviderTarget.CHATGPT);
         }
         finish();
@@ -78,9 +101,15 @@ public final class ChatGptMediaActivity extends Activity {
                 "Pictures/WidgetBar");
         values.put(MediaStore.Images.Media.IS_PENDING, 1);
 
-        pendingCameraUri = getContentResolver().insert(
-                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-                values);
+        try {
+            pendingCameraUri = getContentResolver().insert(
+                    MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                    values);
+        } catch (RuntimeException e) {
+            Log.w(TAG, "camera_insert_failed cause="
+                    + e.getClass().getSimpleName());
+            pendingCameraUri = null;
+        }
 
         if (pendingCameraUri == null) {
             SearchLauncher.openAppHome(this, ProviderTarget.CHATGPT);
@@ -97,7 +126,9 @@ public final class ChatGptMediaActivity extends Activity {
 
         try {
             startActivityForResult(camera, REQUEST_CAMERA);
-        } catch (ActivityNotFoundException e) {
+        } catch (ActivityNotFoundException | SecurityException e) {
+            Log.w(TAG, "camera_launch_failed cause="
+                    + e.getClass().getSimpleName());
             cleanupCameraUri();
             SearchLauncher.openAppHome(this, ProviderTarget.CHATGPT);
             finish();
@@ -116,7 +147,9 @@ public final class ChatGptMediaActivity extends Activity {
 
         try {
             startActivityForResult(pick, REQUEST_PHOTO);
-        } catch (ActivityNotFoundException e) {
+        } catch (ActivityNotFoundException | SecurityException e) {
+            Log.w(TAG, "photo_picker_launch_failed cause="
+                    + e.getClass().getSimpleName());
             SearchLauncher.openAppHome(this, ProviderTarget.CHATGPT);
             finish();
         }
@@ -133,7 +166,9 @@ public final class ChatGptMediaActivity extends Activity {
 
         try {
             startActivityForResult(dictate, REQUEST_DICTATION);
-        } catch (ActivityNotFoundException e) {
+        } catch (ActivityNotFoundException | SecurityException e) {
+            Log.w(TAG, "dictation_launch_failed cause="
+                    + e.getClass().getSimpleName());
             openVoice();
         }
     }
@@ -146,15 +181,12 @@ public final class ChatGptMediaActivity extends Activity {
         super.onActivityResult(requestCode, resultCode, data);
 
         if (requestCode == REQUEST_CAMERA) {
-            if (resultCode == RESULT_OK && pendingCameraUri != null) {
-                ContentValues values = new ContentValues();
-                values.put(MediaStore.Images.Media.IS_PENDING, 0);
-                getContentResolver().update(
-                        pendingCameraUri,
-                        values,
-                        null,
-                        null);
-                shareImage(pendingCameraUri);
+            if (resultCode == RESULT_OK
+                    && pendingCameraUri != null
+                    && publishCameraUri()) {
+                Uri image = pendingCameraUri;
+                pendingCameraUri = null;
+                shareImage(image);
             } else {
                 cleanupCameraUri();
                 finish();
@@ -179,12 +211,31 @@ public final class ChatGptMediaActivity extends Activity {
                     ? data.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
                     : null;
             if (results != null && !results.isEmpty()) {
-                startActivity(new Intent(this, ChatGptNewChatActivity.class)
-                        .putExtra(
-                                ChatGptNewChatActivity.EXTRA_PROMPT,
-                                results.get(0)));
+                SearchLauncher.startSafely(
+                        this,
+                        new Intent(this, ChatGptNewChatActivity.class)
+                                .putExtra(
+                                        ChatGptNewChatActivity.EXTRA_PROMPT,
+                                        results.get(0)),
+                        "chatgpt-dictation-result");
             }
             finish();
+        }
+    }
+
+    private boolean publishCameraUri() {
+        ContentValues values = new ContentValues();
+        values.put(MediaStore.Images.Media.IS_PENDING, 0);
+        try {
+            return getContentResolver().update(
+                    pendingCameraUri,
+                    values,
+                    null,
+                    null) > 0;
+        } catch (RuntimeException e) {
+            Log.w(TAG, "camera_publish_failed cause="
+                    + e.getClass().getSimpleName());
+            return false;
         }
     }
 
@@ -196,20 +247,30 @@ public final class ChatGptMediaActivity extends Activity {
                 .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
         share.setClipData(ClipData.newRawUri("image", image));
 
-        if (share.resolveActivity(getPackageManager()) != null) {
-            startActivity(share);
-        } else {
+        if (share.resolveActivity(getPackageManager()) == null
+                || !SearchLauncher.startSafely(
+                        this,
+                        share,
+                        "chatgpt-image-share")) {
             SearchLauncher.openAppHome(this, ProviderTarget.CHATGPT);
         }
         finish();
     }
 
     private void cleanupCameraUri() {
-        if (pendingCameraUri != null) {
+        if (pendingCameraUri == null) {
+            return;
+        }
+
+        try {
             getContentResolver().delete(
                     pendingCameraUri,
                     null,
                     null);
+        } catch (RuntimeException e) {
+            Log.w(TAG, "camera_cleanup_failed cause="
+                    + e.getClass().getSimpleName());
+        } finally {
             pendingCameraUri = null;
         }
     }

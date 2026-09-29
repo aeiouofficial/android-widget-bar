@@ -29,8 +29,11 @@ public final class ChatGptNewChatActivity extends Activity {
                     .putExtra(Intent.EXTRA_TEXT, trimmed)
                     .setPackage(CHATGPT_PACKAGE)
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            if (sharePrompt.resolveActivity(getPackageManager()) != null) {
-                startActivity(sharePrompt);
+            if (sharePrompt.resolveActivity(getPackageManager()) != null
+                    && SearchLauncher.startSafely(
+                            this,
+                            sharePrompt,
+                            "chatgpt-share-prompt")) {
                 return;
             }
         }
@@ -38,8 +41,11 @@ public final class ChatGptNewChatActivity extends Activity {
         Intent nativeNewChat = new Intent(Intent.ACTION_VIEW, NATIVE_NEW_CHAT)
                 .setPackage(CHATGPT_PACKAGE)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        if (nativeNewChat.resolveActivity(getPackageManager()) != null) {
-            startActivity(nativeNewChat);
+        if (nativeNewChat.resolveActivity(getPackageManager()) != null
+                && SearchLauncher.startSafely(
+                        this,
+                        nativeNewChat,
+                        "chatgpt-native-new-chat")) {
             return;
         }
 
@@ -48,6 +54,6 @@ public final class ChatGptNewChatActivity extends Activity {
                 : WEB_FALLBACK.buildUpon().appendQueryParameter("q", trimmed).build();
         Intent web = new Intent(Intent.ACTION_VIEW, fallbackUri)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        startActivity(web);
+        SearchLauncher.startSafely(this, web, "chatgpt-web-fallback");
     }
 }
