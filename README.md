@@ -113,10 +113,20 @@ The center uses a gesture-aware `SearchActivity`.
 - a valid double-tap opens the selected app's normal launcher activity
 - if the window expires with only one tap, the selected text/action mode starts
 
+## Hardening
+
+The v0.4 hardening branch keeps the same UX contract while tightening runtime behavior:
+
+- AppWidget receivers are non-exported; the Wheel `RemoteViewsService` remains system-only through `BIND_REMOTEVIEWS`.
+- Every widget/action PendingIntent gets an instance-unique data identity, so Classic and Wheel instances cannot overwrite each other's extras through PendingIntent key collisions.
+- Edit-mode hiding/restoration is scoped to the exact `appWidgetId` that launched the editor instead of hiding every widget of that variant.
+- External app/deep-link launches are guarded against missing activities and security rejection, with non-sensitive failure logging and existing web/app fallbacks.
+- ChatGPT Camera/Photo/Dictation state survives activity recreation; pending camera MediaStore rows are published or cleaned up deterministically.
+
 ## Safety
 
 No root, ROM changes, launcher replacement, accessibility service, draw-over-other-apps permission, dangerous permissions, or launcher database mutation.
 
-The stable snapshot before this mode expansion is preserved as GitHub prerelease **v0.1.0-working**. The Classic v0.2 interaction remains available separately while the Wheel variant is developed as a second widget provider.
+The stable snapshot before this mode expansion is preserved as GitHub prerelease **v0.1.0-working**. The Classic v0.2 and Wheel v0.3 branches remain preserved; v0.4 hardens Wheel without rewriting those baselines.
 
 See `docs/ARCHITECTURE.md`, `docs/MODE_ROUTES.md`, and `docs/TEST_PLAN.md`.
